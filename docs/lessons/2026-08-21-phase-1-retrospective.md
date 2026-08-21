@@ -7,8 +7,8 @@
 
 | | finding | kind | action |
 | --- | --- | --- | --- |
-| [F1](#l3-f1) | the loop was built and never run | gap | [`I9`](../improvements.md) |
-| [F2](#l3-f2) | the queue it would consume is nearly untouched | gap | [`I9`](../improvements.md) |
+| [F1](#l3-f1) | the loop was built and never run | gap | [`I9`](../improvements.md) **partial** |
+| [F2](#l3-f2) | the queue it would consume is nearly untouched | gap | [`I9`](../improvements.md) **closed** |
 | [F3](#l3-f3) | ~770 lines of review against 0 lines of implementation | pattern | [`I8`](../improvements.md) |
 | [F4](#l3-f4) | `impCubeVolume` is 31% of the denominator, at 0%, blocked | gap | [`I6`](../improvements.md) |
 | [F5](#l3-f5) | everything is done twice | cost | [`I10`](../improvements.md) |
@@ -33,6 +33,13 @@ Every test commit in every submodule is hand-driven: `test/harness`,
 executed end to end even once**, so every stage of it is an untested assumption —
 including the marginal-gain stop rule, which reads a file that has never existed.
 
+> **Status (2026-08-21): partial.** The loop ran on helios the same day —
+> [`L4`](2026-08-21-first-coverage-loop-run.md). `loop-log.json` and `queue.json`
+> now exist and every stage executed. The last clause of this finding still
+> stands: the queue emptied in one iteration, so the marginal-gain stop rule was
+> never evaluated and remains untested. See
+> [`L4-F6`](2026-08-21-first-coverage-loop-run.md#l4-f6).
+
 ### L3-F2
 **And the queue it exists to consume is nearly full.** Measured from
 `coverage/*.triage.json`, helios and hyperspace each:
@@ -48,6 +55,15 @@ Addressable ceiling — `covered ÷ (all regions − C regions)` — is **≈27%
 
 The automation was finished before the manual work became tedious enough to
 justify it. There is no shortage of input for a first real run.
+
+> **Status (2026-08-21): closed for helios, and the numbers here are now
+> superseded.** The first run consumed the whole helios queue in one iteration —
+> 20.89% → 63.54% lines, ceiling 26.95% → 51.8%. The bucket table above was also
+> overtaken *before* that run by the transitive-coupling pass, which moved 38
+> false `A`s to `B`; the run's own Stage 2 read 124 A / 23 B / 67 C. hyperspace
+> still matches the *original* table exactly, which is what makes it the right
+> target for a second run. See
+> [`L4`](2026-08-21-first-coverage-loop-run.md).
 
 ### L3-F3
 **~770 lines of review against 0 lines of implementation.** `tools/ship.sh` does
