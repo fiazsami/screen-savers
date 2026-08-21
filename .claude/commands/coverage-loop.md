@@ -231,12 +231,58 @@ an unchanged number is not.
 1. Confirm the gate is green and the working trees are clean.
 2. Push each submodule branch and open its PR. **Wait for Claude Code Review**
    and address findings — the branch policy makes this non-optional.
-3. After each submodule PR merges, bump its pointer in the superproject branch,
-   alongside any baseline files the gate rewrote. Never bump to a commit that is
-   not yet on the submodule's default branch.
+
+   Put the evidence **in** the PR body rather than a path to it: the iteration's
+   loop-log entry, and any verifier findings accepted rather than fixed.
+   `.claude/artifacts/loop-log.json` is gitignored *and* does not exist in the
+   submodule repos at all, so a reviewer opening a helios PR would otherwise get
+   a pointer to an uncommitted file in a different repository.
+
+   Say why in the body, too: **a submodule PR cannot be verified in its own
+   repo.** `tools/coverage.sh`, the coverage configs and the baselines all live
+   in the superproject, so whoever reviews a helios PR cannot run the gate and
+   cannot see the baseline move. The verifier's report is the only evidence that
+   PR carries.
+
+   It is also the last review that can still stop the work. Submodule PRs merge
+   before the superproject PR is opened, so by the time anyone reviews the
+   measurement, the code it measures is already on each submodule's default
+   branch. The run is not a transaction and cannot be made one — that is what
+   submodules cost. Undoing a merged submodule PR is a revert PR in that
+   submodule, which is outside what this loop does.
+3. After each submodule PR merges, bump its pointer in the superproject branch.
+   Take the sha from the PR's **merge commit**, never from the branch tip — a
+   squash merge rewrites it. Never bump to a commit that is not yet on the
+   submodule's default branch.
+
+   Stage alongside it, by path: every `coverage/*.baseline.json` the gate
+   rewrote **and** every `coverage/*.triage.json` Stage 2 rewrote. The ledger is
+   the evidence for what the run decided not to test, so it belongs in the same
+   commit as the ratchet advance it justifies — and a ledger left modified is
+   what stops the next run's Stage 0. Never `git add -A`.
 4. Push the superproject branch, open its PR, wait for review, merge.
-5. Close or update the `bd` issues, and file one for every blocked entry.
-6. Delete the branches this run created, in every repo — the local branch and
+
+   **This step runs even if no submodule PR merged.** The gate rewrites the
+   superproject baselines and ledgers on every run, so zero submodule merges
+   does not mean nothing to ship — it means ship the superproject alone. The
+   only alternative is to discard the measurement and say plainly that you did.
+   Stopping here leaves a dirty superproject holding an uncommitted ratchet
+   advance, which is the worst of the three.
+5. Re-attach the submodules, **after** the superproject PR merges:
+
+   ```bash
+   git -C <submodule> switch <its default branch>
+   git -C <submodule> pull --ff-only
+   ```
+
+   Recording a pointer leaves the submodule detached at the merge sha. That is
+   correct for the bump and wrong as a resting state: Stage 0 step 2 refuses to
+   start when any submodule is detached, so a run that ends detached blocks the
+   next one, and the failure surfaces only when someone tries again. After the
+   merge rather than after the bump — until the superproject PR lands, the
+   default branch is not yet where the pointer says it is.
+6. Close or update the `bd` issues, and file one for every blocked entry.
+7. Delete the branches this run created, in every repo — the local branch and
    the remote one:
 
    ```bash
