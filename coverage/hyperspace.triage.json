@@ -279,11 +279,16 @@
       "line": 98,
       "regions": 19,
       "uncovered_regions": 19,
-      "verdict": "A",
+      "verdict": "B",
       "rule": "a:pure",
-      "reason": "external linkage, deterministic, no global state, no API calls",
-      "set_by": "rule",
-      "shared_copy": "identical"
+      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers and segfaults with no GL context. See ss-aio.",
+      "set_by": "human",
+      "shared_copy": "identical",
+      "rule_would_say": {
+        "verdict": "A",
+        "rule": "a:pure"
+      },
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface(float, float, float)",
