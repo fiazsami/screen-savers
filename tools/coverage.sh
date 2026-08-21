@@ -203,7 +203,11 @@ run_one() {
 		status=$?
 		if [ $status -ne 0 ]; then
 			echo "coverage: $name tests exited $status -- not reporting coverage for a failed run" >&2
-			return $status
+			# 2, not $status: a red suite leaves no trustworthy measurement, which
+			# is the same news as a build error and a different kind of news from
+			# a regression. Returning the test binary's own code would land on 1
+			# for the commonest failure and read as "coverage regressed".
+			return 2
 		fi
 
 		if ! xcrun llvm-profdata merge -sparse "$build/tests.profraw" -o "$build/tests.profdata"; then
@@ -268,12 +272,19 @@ run_one() {
 }
 
 FAILED=()
+WORST=0
 for name in "${TARGETS[@]}"; do
 	set +e
 	run_one "$name"
 	status=$?
 	set -e
-	[ $status -ne 0 ] && FAILED+=("$name")
+	if [ $status -ne 0 ]; then
+		FAILED+=("$name")
+		# 2 outranks 1. A run that could not be measured is worse news than one
+		# that measured a regression, and a caller told "1" reads the number
+		# rather than the build log -- which is the whole bug this ranking fixes.
+		[ $status -gt $WORST ] && WORST=$status
+	fi
 done
 
 if [ ${#TARGETS[@]} -gt 1 ]; then
@@ -285,4 +296,8 @@ if [ ${#TARGETS[@]} -gt 1 ]; then
 	echo
 fi
 
-[ ${#FAILED[@]} -eq 0 ] || exit 1
+# The exit code is the verdict, so it has to distinguish the two kinds of
+# failure: 1 means the gate measured a regression, 2 means there was nothing
+# trustworthy to measure. Collapsing both into 1 sent every caller to the
+# coverage table when the answer was in the build log.
+exit $WORST
