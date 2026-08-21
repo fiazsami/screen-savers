@@ -3,7 +3,18 @@
 A map of the agent tooling checked into this repo: what each piece does, when it
 fires, and how the pieces compose. Everything here is a **front door onto
 `tools/`** — the shell and Python under `tools/` is the authority on coverage and
-triage, and nothing in `.claude/` reimplements it.
+triage, and nothing in `.claude/` reimplements it (`P1`).
+
+The *why* behind these choices lives in [`doctrine.md`](doctrine.md); this
+document is the *what*. Principle and invariant references (`P3`, `INV1`, …)
+point there.
+
+> **Status.** Every piece described below exists and is wired. The loop that
+> composes them has **never been run end to end** — there is no
+> `loop-log.json` and no `queue.json`, and every test in the repo was written by
+> hand outside it. Read this as a specification of built machinery, not a report
+> of machinery in use. See
+> [`L3-F1`](../lessons/2026-08-21-phase-1-retrospective.md#l3-f1).
 
 Four kinds of thing live here:
 
@@ -133,8 +144,12 @@ refactored **one at a time** — the ledger's `shared_copy` field marks each
 ## Subagents — the context isolation
 
 Each agent runs in its own context that dies when it reports. The report format
-in each file is therefore the real interface; the prose is not. All five run on
-`sonnet`.
+in each file is therefore the real interface; the prose is not.
+
+Four run on `sonnet`; **`verifier` runs on `opus`**, deliberately. Fresh context
+defends against sunk-cost attachment to a diff, but not against author and
+reviewer sharing a training-induced blind spot — a different model is the cheap
+defence against correlated error (`P3`).
 
 | agent | tools | writes? | returns |
 | --- | --- | --- | --- |
@@ -144,8 +159,10 @@ in each file is therefore the real interface; the prose is not. All five run on
 | **refactorer** | + Edit, Write | yes, production code | `cleared` / `partial` / `blocked` |
 | **verifier** | Read, Bash, Grep, Glob, Skill | no | `pass` / `pass-with-findings` / `fail` |
 
-**coverage-runner** measures and cannot edit — deliberately, so the loop has one
-participant whose report can't have been influenced by its own changes. It
+**coverage-runner** measures and is not given edit tools — deliberately, so the
+loop has one participant whose report is unlikely to have been influenced by its
+own changes. It holds `Bash`, so the restraint is instructed rather than
+structural; see `P3`'s known limit. It
 classifies stderr to distinguish a real coverage failure from a red suite or a
 broken build, because those mean *there is no trustworthy baseline to loop on*.
 It never recommends what to test next.
@@ -168,8 +185,16 @@ Characterization tests are committed **before** the first extraction, without
 exception — if the behaviour can't be characterized, the correct outcome is a
 blocked report, not a careful-looking refactor with nothing pinning it.
 
-**verifier** reviews work it did not do and has no edit tools, so it can't
-quietly fix what it finds. Five checks: the suite is green from clean; the
+**verifier** reviews work it did not do and holds no `Edit`/`Write` tools.
+
+> **Known limit.** It does hold `Bash`, and `sed -i` is `Bash` — so it *is*
+> capable of quietly fixing what it finds, and is instructed not to. What
+> actually catches a violation is the orchestrator recording the submodule's
+> HEAD and working-tree state before dispatch and re-checking on report: a tree
+> that moved during a verifier's turn is a failed run, not a finding. That
+> detects, it does not prevent. See `P3` and [`I2`](../improvements.md).
+
+Five checks: the suite is green from clean; the
 measurement wasn't moved (a widened `exclude` or hand-edited baseline is a failed
 review *regardless of how good the tests are*); the tests can actually fail
 (flagging `CHECK(ptr != nullptr)`-style assertions, expected values copied from a
@@ -186,9 +211,15 @@ running it is the orchestrator: it dispatches, holds loop state, and makes the
 stop decision. **It writes no tests and refactors nothing itself** — doing that
 inline is how the loop runs out of context three iterations in.
 
-The threshold is measured against the **addressable ceiling**, not raw coverage.
-Hard cap: **3 iterations**, stated as non-negotiable, because the failure mode
-being replaced is a loop that keeps spending on a problem that needed a human.
+The threshold is measured against the **addressable ceiling**, not raw coverage
+(`INV3`).
+
+What normally stops the loop is the **marginal-gain floor** in Stage 5, computed
+from `loop-log.json` — when a further iteration is not buying enough ceiling to
+justify itself. **3 iterations** is the outer bound, not the stop rule. Both
+exist to prevent a loop that keeps spending on a problem that needed a human;
+the floor is the version of that safeguard conditioned on data rather than
+asserted in prose (`P8`).
 
 **Stage 0 — preflight.** Clean trees, no detached HEADs, branches created per the
 `CLAUDE.md` policy (`test/coverage-<target>` in the superproject,
@@ -229,10 +260,13 @@ same machinery isn't evidence. Then the iteration is appended to
 Escalating is a **successful** outcome; grinding a fourth iteration against an
 unchanged number is not.
 
-**Exit path.** Push each submodule branch, open its PR, *wait for Claude Code
-Review*, merge; then bump the pointers in the superproject branch alongside any
-baselines the gate rewrote; then the superproject PR. Close the `bd` issues and
-file one per blocked entry.
+**Exit path.** Push each submodule branch, open its PR, *wait for review*, merge;
+then bump the pointers in the superproject branch alongside any baselines the
+gate rewrote; then the superproject PR. Re-attach every submodule, delete the
+branches, close the `bd` issues and file one per blocked entry.
+
+This is currently performed **by hand**. The executable version is specified in
+[`ship-harness.md`](ship-harness.md) and is not built.
 
 ### Artifacts
 
@@ -252,6 +286,11 @@ Neither exists until a loop runs; both are the loop's memory across contexts.
 Registered in `settings.json`. Both are written to **fail open**: a missing
 config, a missing toolchain, or an unreadable payload passes quietly, because a
 guard that fails closed on its own bugs is worse than the problem.
+
+Fail-open is only defensible when liveness is observable, so both hooks append
+to `.claude/artifacts/hook-log.jsonl` **on every invocation, including the ones
+they pass** (`P7`). Without that a guard broken by a config change fails open
+forever and silently — a smoke detector with no low-battery chirp.
 
 ### `guard-default-branch.py` — PreToolUse on `Bash`
 
@@ -307,17 +346,14 @@ completion with a stop rule.
 
 ## The invariants worth internalising
 
-Stated in more than one place across these files, which is the tell that they're
-load-bearing:
+These used to be restated here. They are now canon in one place —
+[`doctrine.md`](doctrine.md#invariants) — so that a change to an invariant has a
+single site rather than several that can drift apart:
 
-1. **Never change the measurement to pass a stage.** No baseline edits, no
-   widened `exclude`, no narrowed `sources`. The verifier treats it as a failed
-   review, and every later iteration would inherit the lie.
-2. **Never commit on a default branch**, in any of the four repos. A submodule
-   change is two PRs, in order.
-3. **The addressable ceiling is the headline**, not raw coverage — and say what
-   the bucket-C denominator was.
-4. **A test that can't fail is worse than no test.** The kill-check is how that
-   gets enforced at write time; the verifier is how it gets caught at review.
-5. **Report blocked early.** A blocked entry beats a large speculative diff, and
-   escalation is a successful outcome for the loop.
+| | |
+| --- | --- |
+| `INV1` | Never change the measurement to pass a stage |
+| `INV2` | Never commit on a default branch |
+| `INV3` | The addressable ceiling is the headline |
+| `INV4` | A test that can't fail is worse than no test |
+| `INV5` | Report blocked early |
