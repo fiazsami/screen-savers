@@ -1,0 +1,44 @@
+{
+  "_scope": [
+    "The denominator is the code that can run without a host process or a GPU.",
+    "Deliberately outside it, and why:",
+    "  HeliosView.mm      AppKit configure sheet; needs legacyScreenSaver to host it",
+    "  HeliosRenderer.mm  Metal pipeline setup; needs a device and a drawable",
+    "  Shaders.metal      not instrumentable by llvm-cov at all",
+    "Counting those would cap coverage near 40% and make any threshold arbitrary.",
+    "Sphere-map and matrix math mirrored out of the shaders into testable C++",
+    "belongs in sources and should be covered."
+  ],
+
+  "metric": "lines",
+  "mode": "ratchet",
+  "threshold": null,
+  "notify": true,
+
+  "sources": [
+    "rsMath",
+    "Implicit",
+    "Rgbhsl",
+    "util",
+    "Helios.cpp"
+  ],
+
+  "tests": [
+    "tests"
+  ],
+
+  "includes": [
+    ".",
+    "rsMath",
+    "Implicit",
+    "Rgbhsl",
+    "util"
+  ],
+
+  "exclude": [],
+
+  "cxxflags": ["-std=c++17"],
+  "cflags": [],
+  "frameworks": [],
+  "linkflags": []
+}

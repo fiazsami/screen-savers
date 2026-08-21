@@ -1,0 +1,38 @@
+{
+  "_scope": [
+    "Hills has almost no testable surface today, and this config says so rather",
+    "than hiding it behind a flattering number.",
+    "Unlike helios and hyperspace it carries no shared C++ core -- its logic is",
+    "Objective-C under 'Source Code', and all of it is either GL-coupled",
+    "(HeightField, Scene, SkyDome, HillsOpenGLView, MainController) or Cocoa UI",
+    "(PrefsController, URLTextField, HillsScreensaverView, main).",
+    "Camera.m is the one unit that is mostly arithmetic; it still includes",
+    "<OpenGL/glu.h> for a single gluLookAt in -apply, so OpenGL is linked and",
+    "any test must stay off that method until the port replaces it.",
+    "This list should grow as hills is ported."
+  ],
+
+  "metric": "lines",
+  "mode": "ratchet",
+  "threshold": null,
+  "notify": true,
+
+  "sources": [
+    "Source Code/Camera.m"
+  ],
+
+  "tests": [
+    "tests"
+  ],
+
+  "includes": [
+    "Source Code"
+  ],
+
+  "exclude": [],
+
+  "cxxflags": ["-std=c++17"],
+  "cflags": [],
+  "frameworks": ["Foundation", "OpenGL"],
+  "linkflags": []
+}

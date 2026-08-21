@@ -6,3 +6,6 @@
 .beads/proxieddb/
 
 .DS_Store
+
+# Instrumented binaries and profile data from tools/coverage.sh
+.coverage-build/

@@ -1,0 +1,45 @@
+{
+  "_scope": [
+    "Hyperspace is not ported yet, so the denominator is only the shared C++",
+    "core that already compiles without a GL context.",
+    "Deliberately outside it, and why:",
+    "  Hyperspace/*.cpp   the simulation still calls OpenGL directly",
+    "  rsText/rsText.cpp  builds display lists; GL-coupled",
+    "  HyperspaceView.mm  AppKit/NSOpenGLView; needs a host process",
+    "As the port replaces those with testable code, move them into sources --",
+    "the ratchet will hold whatever coverage they arrive with.",
+    "Note the include style: this repo uses <rsMath/rsMath.h>, so the repo root",
+    "is on the include path rather than each source directory.",
+    "OpenGL is linked because this repo's Implicit/impSurface.cpp still calls it",
+    "from draw() and the destructor. Helios de-GL'd its copy of that same file",
+    "during its port; the two have diverged. Drop the framework once hyperspace",
+    "is ported, or once the shared core is extracted and unified."
+  ],
+
+  "metric": "lines",
+  "mode": "ratchet",
+  "threshold": null,
+  "notify": true,
+
+  "sources": [
+    "rsMath",
+    "Implicit",
+    "Rgbhsl",
+    "util"
+  ],
+
+  "tests": [
+    "tests"
+  ],
+
+  "includes": [
+    "."
+  ],
+
+  "exclude": [],
+
+  "cxxflags": ["-std=c++17"],
+  "cflags": [],
+  "frameworks": ["OpenGL"],
+  "linkflags": []
+}
