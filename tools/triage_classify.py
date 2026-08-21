@@ -506,6 +506,19 @@ def set_verdict(ledger_path, target, verdict, reason):
     entry["reason"] = reason or entry["reason"]
     entry["decided"] = datetime.date.today().isoformat()
 
+    # The counts block is what the triager and /coverage-loop Stage 2 report as
+    # the bucket split, so it has to move with the entry it summarises. Without
+    # this it stayed at whatever the last full run produced and quietly diverged
+    # by one function per --set.
+    #
+    # Stale entries are excluded, because a full run excludes them: it counts the
+    # functions it just classified and carries the vanished ones alongside. counts
+    # is the split of work that exists, and a renamed function is not work. Summing
+    # the stored list instead would put the drift straight back, one stale entry at
+    # a time, in the direction a later full run silently reverts.
+    counts, _ = summarise([e for e in data["entries"] if not e.get("stale")])
+    data["counts"] = {VERDICTS[key]: counts[key] for key in counts}
+
     with open(ledger_path, "w") as handle:
         json.dump(data, handle, indent=2)
         handle.write("\n")
@@ -593,7 +606,7 @@ def main():
                 "updated": datetime.date.today().isoformat(),
                 "_policy": POLICY,
                 "counts": {VERDICTS[k]: counts[k] for k in counts},
-                "entries": entries + [previous[i] for i in stale],
+                "entries": entries + [dict(previous[i], stale=True) for i in stale],
             },
             handle,
             indent=2,
