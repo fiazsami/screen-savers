@@ -21,6 +21,13 @@ import os
 import subprocess
 import sys
 
+try:
+    from heartbeat import record
+except ImportError:  # the log is optional; the check it annotates is not
+    def record(*_args, **_kwargs):
+        pass
+
+HOOK = "check-test-syntax"
 PROJECT = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
 
 # Which frontend and flag set each extension needs. Mirrors coverage.sh, which is
@@ -51,36 +58,41 @@ def resolve(config, root, key):
     return [line for line in out.stdout.splitlines() if line]
 
 
+def skip(reason):
+    record(HOOK, "skip", reason)
+    return 0
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
-        return 0
+        return skip("unreadable payload")
 
     path = (payload.get("tool_input") or {}).get("file_path")
     if not isinstance(path, str) or not os.path.isfile(path):
-        return 0
+        return skip("no readable file_path in payload")
 
     extension = os.path.splitext(path)[1]
     if extension not in FRONTENDS:
-        return 0
+        return skip(f"not a compiled source: {extension or 'no extension'}")
 
     relative = os.path.relpath(os.path.abspath(path), PROJECT)
     parts = relative.split(os.sep)
     # <submodule>/.../tests/<file> -- anything outside a submodule's tests tree,
     # including the parent repo's own tooling, is none of this hook's business.
     if len(parts) < 3 or parts[0] == ".." or "tests" not in parts[1:-1]:
-        return 0
+        return skip("outside a submodule tests/ tree")
 
     submodule = parts[0]
     config = os.path.join(PROJECT, "coverage", f"{submodule}.json")
     root = os.path.join(PROJECT, submodule)
     if not os.path.isfile(config):
-        return 0
+        return skip(f"no coverage config for {submodule}")
 
     includes = resolve(config, root, "includes")
     if includes is None:
-        return 0
+        return skip(f"could not resolve includes for {submodule}")
     frontend, flag_key, extra = FRONTENDS[extension]
     flags = resolve(config, root, flag_key) or []
 
@@ -91,14 +103,16 @@ def main():
     try:
         out = subprocess.run(command, capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
-        return 0
+        return skip("toolchain unavailable")
 
     if out.returncode != 0:
         diagnostics = (out.stderr or out.stdout).strip().splitlines()
+        record(HOOK, "refuse", f"{relative} does not compile")
         print(f"{relative} does not compile:", file=sys.stderr)
         print("\n".join(diagnostics[:20]), file=sys.stderr)
         return 2
 
+    record(HOOK, "allow", relative)
     return 0
 
 

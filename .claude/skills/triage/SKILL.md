@@ -56,14 +56,58 @@ downstream test would not?** If there is an answer, it is not a C.
 
 The C rules are a closed set — `c:compiler-generated`, `c:trivial-accessor`,
 `c:generated-table`, `c:vendored-unmodified`. An open-ended "not worth it"
-becomes a place to put anything inconvenient, so if something needs a new C
-reason, that is a change to the rule table, discussed, not a one-off.
+becomes a place to put anything inconvenient, so a new C reason is a change to
+the rule table, not a one-off.
+
+### How the set gets amended
+
+Closing a set without saying how to open it fails its own way: legitimate new
+categories accumulate in `?`, get settled one verdict at a time, and the
+pressure to file them under a nearby-but-wrong existing C grows with the
+backlog. So the rule is —
+
+> When **three or more** human verdicts across the ledgers share a rationale
+> that no existing rule captures, that is a proposal for a new closed-set
+> member. It goes as a pull request against the rule table in
+> `tools/triage_classify.py`, citing those ledger entries as its evidence.
+
+The evidence is already being collected. A human verdict keeps `rule_would_say`
+when it disagrees with the rules, so the checked-in ledgers show exactly where
+rules and humans keep parting company, and a growing `needs_human` list is the
+signal to go and look. Three is a threshold, not a ceremony: one disagreement is
+a misfiled entry, three with one shared reason is a missing rule.
+
+The same applies to this file. When something written here loses an argument
+with reality, it gets amended here — in a diff, with the reason — rather than
+worked around in whichever agent or run happened to hit it.
+
+## Selection and ordering
+
+The script classifies; it does not rank. Ranking is what decides which work
+actually gets done, so it is judgment, and it lives here rather than in whatever
+is driving the skill — a loop, an agent, or you at the prompt should all get the
+same queue out of the same ledger.
+
+- **Churn.** `git -C <submodule> log --oneline --format= --since=2.years -- <path> | wc -l`
+  per file. Code that changes often and is uncovered is where a regression will
+  actually land; code that has not moved in ten years is cheaper to leave.
+- **Grouping.** Bucket B entries sharing one blocker are one refactor, not
+  twelve. Collapse them, and say how many functions the single change unblocks —
+  that number is what makes a refactor worth its risk.
+- **Disjointness.** When the work will be split across more than one author —
+  as it is under `/coverage-loop`, whose test-writers run in parallel — no two A
+  entries in the same wave may want the same test file. Assign each entry a
+  `tests/test_<topic>.cpp` and make sure the topics do not collide. A single
+  author working the queue in sequence can ignore this.
+
+Order the A list by uncovered regions, with churn as the tiebreak, and demote an
+entry that looks like it will need a wide diff. Region count is what moves
+coverage; churn is what says whether moving it was worth the review time.
 
 ## Reporting back
 
 Lead with the bucket split and the addressable ceiling per submodule. Then the
-top of the A list — that is the work queue, sorted by uncovered regions, because
-region count is what actually moves coverage.
+top of the A list — that is the work queue, ordered by the rule above.
 
 For B, report *what blocks it*, grouped by rule: `b:hidden` (no way to reach the
 function), `b:api-coupled` (a GL or Metal call in the way), `b:global-state`,

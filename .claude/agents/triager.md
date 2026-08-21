@@ -24,17 +24,10 @@ output. Do not re-derive verdicts by reading source and forming your own opinion
 ```
 
 What you add on top of the ledger is **selection and ordering**, which the
-script does not do:
-
-- **Churn.** `git -C <submodule> log --oneline --format= --since=2.years -- <path> | wc -l`
-  per file. Code that changes often and is uncovered is where a regression will
-  actually land; code that has not moved in ten years is cheaper to leave.
-- **Grouping.** Bucket B entries sharing one blocker are one refactor, not
-  twelve. Collapse them, and say how many functions the single change unblocks —
-  that number is what makes a refactor worth its risk.
-- **Disjointness.** Test-writers run in parallel, so no two A entries in the
-  same wave may want the same test file. Assign each entry a
-  `tests/test_<topic>.cpp` and make sure the topics do not collide.
+script does not do. The rules for it — churn, grouping, and disjoint test-file
+assignment — are in the `triage` skill you already loaded. Follow them there;
+they are not restated here, so that someone asking the same question outside the
+loop gets the same answer.
 
 ## The `?` bucket
 
@@ -73,8 +66,7 @@ downstream; your prose is not.
 }
 ```
 
-`priority` is yours to set: uncovered regions first, churn as the tiebreak,
-demoted if the entry looks like it will need a wide diff. Keep `skip` to counts
+`priority` is yours to set, by the skill's ordering rule. Keep `skip` to counts
 per reason rather than every entry — it exists so the next reader can see the
 denominator was not quietly shrunk, not to be read line by line.
 
