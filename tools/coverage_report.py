@@ -174,6 +174,16 @@ def main():
     if below_floor:
         print(f"  coverage is below the {threshold:.1f}% floor")
 
+    # Printed here rather than left to a skill or a README: the cheapest way to
+    # clear this failure is to move the goalposts, and whoever is about to do it
+    # is looking at this output, not at documentation they chose to open.
+    if not passed:
+        print()
+        print("  Do not clear this by editing the baseline, adding to 'exclude',")
+        print("  or narrowing 'sources' -- that lowers the bar rather than fixing")
+        print("  the code, and it is a scope decision the user makes deliberately.")
+        print("  Each config's '_scope' block records why the scope is what it is.")
+
     # The baseline rises on improvement, and otherwise only when explicitly
     # forced -- a gate that rewrites its own floor on a regression is not a gate.
     should_write = (percent > baseline + EPSILON) or args.update_baseline
@@ -192,6 +202,8 @@ def main():
             )
             handle.write("\n")
         print(f"  baseline updated -> {percent:.1f}%")
+        if args.update_baseline and not passed:
+            print("  forced past a failing gate -- record why in the commit message")
 
     if args.json:
         with open(args.json, "w") as handle:

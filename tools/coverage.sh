@@ -191,7 +191,10 @@ run_one() {
 		if ! xcrun clang++ "${instrument[@]}" "${linkflags[@]}" -o "$build/tests" "${objects[@]}"; then
 			echo "coverage: $name failed to link" >&2
 			echo "coverage: undefined symbols usually mean a source needs a framework" >&2
-			echo "coverage: add it to \"frameworks\" in $config, or drop the file from \"sources\"" >&2
+			echo "coverage: add it to \"frameworks\" in $config" >&2
+			echo "coverage: dropping the file from \"sources\" also makes this go away, but that" >&2
+			echo "coverage: shrinks the denominator -- it is a scope decision, made deliberately" >&2
+			echo "coverage: and recorded in the config's \"_scope\" block, not a fix for a build" >&2
 			return 2
 		fi
 
