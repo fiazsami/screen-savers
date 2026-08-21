@@ -56,8 +56,30 @@ downstream test would not?** If there is an answer, it is not a C.
 
 The C rules are a closed set — `c:compiler-generated`, `c:trivial-accessor`,
 `c:generated-table`, `c:vendored-unmodified`. An open-ended "not worth it"
-becomes a place to put anything inconvenient, so if something needs a new C
-reason, that is a change to the rule table, discussed, not a one-off.
+becomes a place to put anything inconvenient, so a new C reason is a change to
+the rule table, not a one-off.
+
+### How the set gets amended
+
+Closing a set without saying how to open it fails its own way: legitimate new
+categories accumulate in `?`, get settled one verdict at a time, and the
+pressure to file them under a nearby-but-wrong existing C grows with the
+backlog. So the rule is —
+
+> When **three or more** human verdicts across the ledgers share a rationale
+> that no existing rule captures, that is a proposal for a new closed-set
+> member. It goes as a pull request against the rule table in
+> `tools/triage_classify.py`, citing those ledger entries as its evidence.
+
+The evidence is already being collected. A human verdict keeps `rule_would_say`
+when it disagrees with the rules, so the checked-in ledgers show exactly where
+rules and humans keep parting company, and a growing `needs_human` list is the
+signal to go and look. Three is a threshold, not a ceremony: one disagreement is
+a misfiled entry, three with one shared reason is a missing rule.
+
+The same applies to this file. When something written here loses an argument
+with reality, it gets amended here — in a diff, with the reason — rather than
+worked around in whichever agent or run happened to hit it.
 
 ## Selection and ordering
 
