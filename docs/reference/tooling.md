@@ -359,32 +359,32 @@ model.
 **It is a backstop for the honest mistake — not a security boundary**, and it
 doesn't remove the need to read the branch policy.
 
-> **Known limit — it does not currently cover submodule commits written with
-> `cd`.** The repository is resolved as `cwd + any -C argument`, where `cwd` is
-> the **session** directory; a `cd` earlier in the same command line does not
-> move it. So `git -C helios commit` is checked against helios, and
-> `cd helios && git commit` is checked against the *superproject* — which is how
-> an agent working inside a submodule naturally writes it. With hills on
-> `master`:
+Which repository a call belongs to is decided by **tracking `cd` across the
+command line**, not by the payload's `cwd` alone. `cwd` is the *session*
+directory, so resolving against it alone checked the superproject for
+`cd helios && git commit` — the way an agent inside a submodule naturally writes
+it — and the submodules went unguarded for the whole life of the hook. A `cd` is
+applied whatever separator precedes it, and only if the target exists: a `cd`
+that would fail leaves the shell where it was under `;` and short-circuits the
+rest under `&&`.
+
+`test_guard_default_branch.py`, beside the hook, pins this — 16 cases, of which
+7 fail against the pre-fix version. Run it with
+`python3 .claude/hooks/test_guard_default_branch.py`.
+
+> **Known limit.** Two of the eight submodule commits in the first
+> `/coverage-loop` run produced **no record at all**, and the cause was never
+> established, because the log stores the decision and not the command that
+> produced it ([`I13`](../improvements.md)). The `cd` defect that ran alongside
+> it is fixed — see
+> [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) — but until
+> `I13` closes, a hook count that comes up short cannot be diagnosed, only
+> noticed.
 >
-> ```
-> git -C hills commit -m test     -> refuse | commit on master in hills
-> cd hills && git commit -m test  -> allow  | commit in screen-savers on <branch>
-> ```
->
-> It fails open, so the bypass is invisible in the log: the allow names a
-> repository and branch that are not the ones being committed to. This was not
-> caught by design review; it was caught by the first `/coverage-loop` run
-> counting hook decisions and finding six allows for eight commits, all six
-> naming the wrong repo. See
-> [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) and
-> [`I12`](../improvements.md).
->
-> A related gap: two of those eight commits produced **no record at all** and the
-> cause could not be established, because the log stores the decision and not the
-> command that produced it ([`I13`](../improvements.md)). Until both are closed,
-> treat the guard as covering the superproject only, and read `CLAUDE.md`'s
-> branch policy as the actual control for submodules.
+> Separately, the guard still reads the branch as it is when the hook fires, so
+> `git switch -c topic && git commit` is refused even though the commit would
+> have landed on `topic` ([`I11`](../improvements.md)). That one fails *safe* and
+> costs a retry.
 
 ### `check-test-syntax.py` — PostToolUse on `Edit|Write|MultiEdit`
 

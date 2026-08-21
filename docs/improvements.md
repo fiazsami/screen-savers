@@ -20,7 +20,6 @@ is ordinary project work and belongs in `bd` alone.
 
 | id | improvement | from | changes | bd | why it matters |
 | --- | --- | --- | --- | --- | --- |
-| **I12** | Resolve the guard's repository *after* a `cd`, not from the session directory | [L4-F2](lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) | [`tooling.md`](reference/tooling.md) hooks section | `ss-1sp` | The rule `CLAUDE.md` calls enforced is not enforced for `cd <sub> && git commit`, which is how an agent inside a submodule naturally writes it. It protected **none** of the first run's eight submodule commits. Fails open, so it looks like eight passes. **Do this first.** Same root cause as `I11`; fix them together. |
 | **I6** | Decide `impCubeVolume` — pick one of the three costed options | [L3-F4](lessons/2026-08-21-phase-1-retrospective.md#l3-f4), [L1-F5](lessons/2026-08-21-doctrine-self-review.md#l1-f5) | [`doctrine.md`](reference/doctrine.md) `P6` known limit | `ss-aio` | 31% of the denominator, at 0%, blocked. The worked example of an escalation nobody consumed. **Priced from the final ledger**: 23 functions / 525 regions per twin, so one change to `impSurface`'s constructor unblocks **1050 regions across both**. (An earlier figure of 19/469 counted only the functions the transitive-coupling pass *moved*, not the whole B bucket.) **Now also the binding constraint on the loop**: those 525 regions are 53% of helios' addressable denominator and cap any run there at **46.4%** — and the first run reached that cap exactly, covering 100% of bucket A. |
 | **I15** | Run the loop a second time, on hyperspace, to reach the marginal-gain floor | [L4-F6](lessons/2026-08-21-first-coverage-loop-run.md#l4-f6) | [`tooling.md`](reference/tooling.md) status block | `ss-44s` | What `I9` could not reach. The helios queue emptied in one iteration, so the stop rule the whole exercise was meant to test never evaluated. `loop-log.json` now has exactly one entry, making this also the first test of the compare-against-previous path. |
 | **I14** | Fix `addressable` — it mixes units and counts regions no run can reach | [L4-F4](lessons/2026-08-21-first-coverage-loop-run.md#l4-f4), [L4-F5](lessons/2026-08-21-first-coverage-loop-run.md#l4-f5) | [`tooling.md`](reference/tooling.md) `/coverage-loop` section | `ss-p45` | The loop's own success metric. Bucket B stays in the denominator while being by definition unreachable, so the default threshold of 80 was impossible before the run started and nothing said so. And Stage 5 specifies dividing a **line** count by a **region** denominator. |
@@ -55,6 +54,7 @@ closes.
 | Four drifted claims corrected in the tooling map | [L3-F9](lessons/2026-08-21-phase-1-retrospective.md#l3-f9) | [`tooling.md`](reference/tooling.md) | this restructure |
 | The analysis put under version control | [L3-F7](lessons/2026-08-21-phase-1-retrospective.md#l3-f7) | all of `docs/` | this restructure |
 | **I9 — the loop run once, end to end** | [L3-F1](lessons/2026-08-21-phase-1-retrospective.md#l3-f1), [L3-F2](lessons/2026-08-21-phase-1-retrospective.md#l3-f2) | [`tooling.md`](reference/tooling.md) status block | `fe0808c`, helios#7 |
+| **I12 — the guard resolves its repository after a `cd`** | [L4-F2](lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) | [`tooling.md`](reference/tooling.md) hooks section | this change |
 
 ---
 
@@ -62,29 +62,31 @@ closes.
 
 If only three things are done, do these, in this order:
 
-1. **I12** — fix the guard. It protected none of the first run's eight submodule
-   commits, and it fails open, so the next run repeats that unprotected while
-   looking clean. A guard that does not guard is worse than a documented absence:
-   it is the smoke detector `P7` was written about, chirping steadily with the
-   sensor unplugged.
-2. **I6** — decide `impCubeVolume`. Unchanged as an argument, but the first run
+1. **I6** — decide `impCubeVolume`. Unchanged as an argument, but the first run
    settled it: those 525 regions are 53% of helios' addressable denominator, and
    the run **covered 100% of bucket A**, stopping at the resulting ceiling of
    46.4%. There is no longer any coverage work available on helios that does not
    go through this decision.
-3. **I15** — run the loop again, on hyperspace. **I9** proved the machinery
+2. **I15** — run the loop again, on hyperspace. **I9** proved the machinery
    works; it could not reach the marginal-gain stop rule, which was the point.
-   That rule is still the only stage never executed.
+   That rule is still the only stage never executed. Now unblocked: it was
+   waiting on **I12**, because another wave of submodule commits through an
+   unguarded hook would have repeated the first run's exposure knowingly.
+3. **I14** — fix `addressable`. Promoted from the note below, because **I15**
+   depends on being able to read its own result: on hyperspace the metric can
+   report a figure above the structural ceiling, exactly as it did on helios.
 
 **I8** still does not make the list, for a sharper reason than before. The ship
 harness would automate the exit path — and the first real run of that path found
-the guard hole (**I12**), the tracker collision (**I16**) and the submodule
-pointer sequence all by having a human walk it. Automating it now would encode a
-walk that has been done exactly once.
+the guard hole (**I12**, now landed), the tracker collision (**I16**) and the
+submodule pointer sequence all by having a human walk it. Automating it now would
+encode a walk that has been done exactly once.
 
-**I14** is the sleeper. It is filed as a design defect, but until it is fixed the
-loop cannot state a target it can actually hit, and every run's "did this work"
-answer is computed from a quotient of two different metrics.
+**I13** is the one to watch. `I12` closed the defect the first run *could*
+diagnose; `I13` is the two commits it could not, and the reason it could not is
+that the log records decisions without the commands behind them. Until that
+changes, the next guard bug is found the same way this one was — by someone
+noticing the arithmetic does not add up.
 
 ---
 
