@@ -6,9 +6,10 @@ a pull request. Nothing enforced that -- settings.local.json pre-approves
 `git commit` and `git push` with no branch check -- so this closes the gap on the
 one side an agent can get wrong without noticing.
 
-Two cases are refused:
+Three cases are refused:
 
   committing while HEAD is the repo's default branch
+  committing while HEAD is detached, which lands the commit on no branch at all
   pushing an explicit refspec whose destination is the default branch
 
 The default branch is read from `origin/HEAD` rather than assumed, so this works
@@ -107,6 +108,21 @@ def main():
 
         if subcommand == "commit":
             branch = git(repo, "symbolic-ref", "--short", "HEAD")
+            if branch is None:
+                # Detached: symbolic-ref exits non-zero, so `branch == protected`
+                # would be False and the commit would sail through -- the one
+                # state CLAUDE.md names explicitly for submodules. Confirm the
+                # repo is otherwise sound before refusing, so that a git() that
+                # failed for some other reason still passes quietly.
+                if git(repo, "rev-parse", "--verify", "--quiet", "HEAD") is None:
+                    continue
+                refuse(
+                    f"Blocked: committing from a detached HEAD in {name}.\n"
+                    f"The commit would land on no branch, and CLAUDE.md forbids it "
+                    f"in a submodule for that reason.\nAttach first: "
+                    f"git -C {repo_arg or '.'} switch <branch>, or "
+                    f"git -C {repo_arg or '.'} switch -c <type>/<topic>"
+                )
             if branch == protected:
                 refuse(
                     f"Blocked: committing to '{protected}' in {name}, which is its "
