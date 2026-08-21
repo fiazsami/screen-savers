@@ -500,7 +500,24 @@ def set_verdict(ledger_path, target, verdict, reason):
         print("triage: it is not a C.", file=sys.stderr)
         return 2
 
-    entry["rule_would_say"] = {"verdict": entry["verdict"], "rule": entry["rule"]}
+    # rule_would_say exists to answer one question -- where do the rules and a
+    # human disagree -- so it has to keep naming the *rule's* verdict. Writing it
+    # on every --set means the second override against the same entry records the
+    # human's earlier call and labels it the rule's, which is the one thing this
+    # field must never say. A full run has fresh rule output to regenerate it
+    # from; this path has only the stored entry, so it writes the field while the
+    # entry is still the rule's and then leaves it alone.
+    #
+    # The two branches mirror build_entries, where the field is present only when
+    # the rule and the human differ: record on first override, and drop it again
+    # if a later override lands back on what the rules said, rather than leaving
+    # a rule_would_say that agrees with the verdict beside it.
+    if entry.get("set_by") != "human":
+        if entry["verdict"] != verdict:
+            entry["rule_would_say"] = {"verdict": entry["verdict"], "rule": entry["rule"]}
+    elif entry.get("rule_would_say", {}).get("verdict") == verdict:
+        del entry["rule_would_say"]
+
     entry["verdict"] = verdict
     entry["set_by"] = "human"
     entry["reason"] = reason or entry["reason"]
