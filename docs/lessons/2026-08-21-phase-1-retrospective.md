@@ -60,10 +60,15 @@ justify it. There is no shortage of input for a first real run.
 > superseded.** The first run consumed the whole helios queue in one iteration —
 > 20.89% → 63.54% lines, ceiling 26.95% → 51.8%. The bucket table above was also
 > overtaken *before* that run by the transitive-coupling pass, which moved 38
-> false `A`s to `B`; the run's own Stage 2 read 124 A / 23 B / 67 C. hyperspace
-> still matches the *original* table exactly, which is what makes it the right
-> target for a second run. See
-> [`L4`](2026-08-21-first-coverage-loop-run.md).
+> false `A`s to `B` **in both twins**; the run's own Stage 2 read 124 A / 23 B /
+> 67 C.
+>
+> hyperspace's *coverage* is untouched — still 26.95% (266/987) and 20.89%
+> (496/2374), which is why it is the right target for a second run. But its
+> **ledger is not**: it now reads 124 A / 23 B / 67 C with B at 525 regions, not
+> the 143 / 4 / 67 above. Anyone picking it up for `ss-44s` should expect the
+> same `ss-aio` wall that capped helios at 46.4%, not the near-empty B bucket this
+> table shows. See [`L4`](2026-08-21-first-coverage-loop-run.md).
 
 ### L3-F3
 **~770 lines of review against 0 lines of implementation.** `tools/ship.sh` does

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-21
 **Subject:** the first end-to-end execution of the loop, on helios (`ss-1gl`)
-**Method:** ran it; every number below is from the gate, `.claude/artifacts/hook-log.jsonl`, or a mutation applied and reverted. Where something is inference rather than measurement it says so.
+**Method:** ran it. Line coverage is from the gate; hook counts from `.claude/artifacts/hook-log.jsonl`; discrimination claims from a mutation applied and reverted. Bucket sizes, regions and ceilings come from `coverage/helios.triage.json` via the classifier — **whose own arithmetic [`F5`](#l4-f5) shows to be defective**, so those figures are recomputed directly from the ledger's entries here rather than taken from its `counts` block. Where something is inference rather than measurement it says so.
 **Outcome:** the machinery works. What it was worth was not the coverage — it was discovering that the branch guard had never been protecting submodule commits, that the loop's own success metric is unreachable by construction, and that the stop rule it exists to test *still* has not executed.
 
 | | finding | kind | action |
@@ -99,24 +99,61 @@ gap over — a log that proves the hook ran but not what it ran against.
 nothing said so.** `addressable = covered ÷ (all regions − C regions)` leaves
 bucket B in the denominator. But B *is* the work that cannot be done until
 something is refactored. On helios, `ss-aio`'s 525 blocked regions are 53% of the
-980-region denominator, so covering every entry in the queue could not have
-exceeded **~48%**.
+980-region denominator.
 
-The default threshold is 80. Stage 2 checks whether the ceiling already *meets*
-the threshold; nothing checks whether it can ever reach it. The run was
-guaranteed from the outset to stop on some other condition, and did.
+The final ledger makes the ceiling exact:
+
+| bucket | functions | regions | uncovered at the end |
+| --- | --- | --- | --- |
+| A | 123 | 455 | **0** |
+| B | 23 | 525 | 525 |
+| C | 68 | 77 | 24 |
+
+**Bucket A finished at zero uncovered regions.** The run did not merely empty its
+queue — it covered every reachable region in the submodule and stopped at its
+structural ceiling exactly. Against a default threshold of **80**, that ceiling is
+`455 ÷ 980` = **46.4%**.
+
+Stage 2 checks whether the ceiling already *meets* the threshold; nothing checks
+whether it can ever reach it. The run was guaranteed from the outset to stop on
+some other condition, and did.
+
+> **Correction (2026-08-21).** This finding first said the cap was "~48%", which
+> both was wrong and appeared to contradict the 51.8% reported for the same run
+> eleven lines above. The two figures are reconciled by
+> [`F5`](#l4-f5): the reported number is computed by an asymmetric formula. The
+> honest cap under the definition this finding states is 46.4%, and the run hit
+> it. Corrected rather than status-marked, because it was an arithmetic error at
+> the time of writing and not a fact overtaken by events.
 
 ### L4-F5
-**`addressable` divides a line count by a region denominator.** Stage 5 says to
-compute it as "that coverage over the denominator in this iteration's triage
-ledger". The gate measures **lines** — helios finished at 1506/2370. The ledger
-counts llvm-cov **regions** — 507/980. They are different metrics over the same
+**`addressable` is wrong in three separate ways, and they partly cancel.**
+
+*One — it divides a line count by a region denominator.* Stage 5 says to compute
+it as "that coverage over the denominator in this iteration's triage ledger". The
+gate measures **lines** — helios finished at 1506/2370. The ledger counts llvm-cov
+**regions** — 980 in the denominator. They are different metrics over the same
 code and the quotient of one by the other means nothing.
 
-The figures in this run's loop log came from re-running the classifier instead: a
-full extra pass the spec does not budget for, and which a less suspicious
-orchestrator would have skipped in favour of the arithmetic the document
-literally specifies.
+*Two — the numerator and denominator count different populations.*
+`tools/triage_classify.py:439` divides **total** covered regions, which includes
+the 53 covered bucket-C regions, by a denominator from which bucket C has been
+excluded entirely. That asymmetry is the whole reason the run reported **51.8%**
+(508/980) while having covered 46.4% of what the metric claims to measure. A
+number above the structural ceiling should have been impossible; it was produced
+by counting 53 regions in the numerator that the denominator disowns.
+
+*Three — bucket B inflates the denominator*, per [`F4`](#l4-f4).
+
+This is the finding that matters most for `I14`, and the reason that improvement
+is filed against the metric rather than the prose: fixing only the unit mismatch
+would leave `addressable` reporting a figure the code cannot reach.
+
+The figures in this run's loop log came from re-running the classifier — a full
+extra pass the spec does not budget for, and which a less suspicious orchestrator
+would have skipped in favour of the arithmetic the document literally specifies.
+That extra pass is also how the 51.8% got recorded at all, so the loop log's own
+headline carries defect two.
 
 ### L4-F6
 **The marginal-gain floor still has never executed.** This is the finding that

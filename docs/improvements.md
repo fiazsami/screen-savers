@@ -21,7 +21,7 @@ is ordinary project work and belongs in `bd` alone.
 | id | improvement | from | changes | bd | why it matters |
 | --- | --- | --- | --- | --- | --- |
 | **I12** | Resolve the guard's repository *after* a `cd`, not from the session directory | [L4-F2](lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) | [`tooling.md`](reference/tooling.md) hooks section | `ss-1sp` | The rule `CLAUDE.md` calls enforced is not enforced for `cd <sub> && git commit`, which is how an agent inside a submodule naturally writes it. It protected **none** of the first run's eight submodule commits. Fails open, so it looks like eight passes. **Do this first.** Same root cause as `I11`; fix them together. |
-| **I6** | Decide `impCubeVolume` — pick one of the three costed options | [L3-F4](lessons/2026-08-21-phase-1-retrospective.md#l3-f4), [L1-F5](lessons/2026-08-21-doctrine-self-review.md#l1-f5) | [`doctrine.md`](reference/doctrine.md) `P6` known limit | `ss-aio` | 31% of the denominator, at 0%, blocked. The worked example of an escalation nobody consumed. **Now priced**: the blocked surface is 19 functions / 469 regions per twin, so one change to `impSurface`'s constructor unblocks 938 regions across both. **Now also the binding constraint on the loop**: its 525 regions are 53% of helios' addressable denominator and cap any run there at ~48%. |
+| **I6** | Decide `impCubeVolume` — pick one of the three costed options | [L3-F4](lessons/2026-08-21-phase-1-retrospective.md#l3-f4), [L1-F5](lessons/2026-08-21-doctrine-self-review.md#l1-f5) | [`doctrine.md`](reference/doctrine.md) `P6` known limit | `ss-aio` | 31% of the denominator, at 0%, blocked. The worked example of an escalation nobody consumed. **Priced from the final ledger**: 23 functions / 525 regions per twin, so one change to `impSurface`'s constructor unblocks **1050 regions across both**. (An earlier figure of 19/469 counted only the functions the transitive-coupling pass *moved*, not the whole B bucket.) **Now also the binding constraint on the loop**: those 525 regions are 53% of helios' addressable denominator and cap any run there at **46.4%** — and the first run reached that cap exactly, covering 100% of bucket A. |
 | **I15** | Run the loop a second time, on hyperspace, to reach the marginal-gain floor | [L4-F6](lessons/2026-08-21-first-coverage-loop-run.md#l4-f6) | [`tooling.md`](reference/tooling.md) status block | `ss-44s` | What `I9` could not reach. The helios queue emptied in one iteration, so the stop rule the whole exercise was meant to test never evaluated. `loop-log.json` now has exactly one entry, making this also the first test of the compare-against-previous path. |
 | **I14** | Fix `addressable` — it mixes units and counts regions no run can reach | [L4-F4](lessons/2026-08-21-first-coverage-loop-run.md#l4-f4), [L4-F5](lessons/2026-08-21-first-coverage-loop-run.md#l4-f5) | [`tooling.md`](reference/tooling.md) `/coverage-loop` section | `ss-p45` | The loop's own success metric. Bucket B stays in the denominator while being by definition unreachable, so the default threshold of 80 was impossible before the run started and nothing said so. And Stage 5 specifies dividing a **line** count by a **region** denominator. |
 | **I8** | Build `tools/ship.sh` from the corrected spec, behind `--dry-run` | [L2](lessons/2026-08-21-ship-harness-review.md), [L3-F3](lessons/2026-08-21-phase-1-retrospective.md#l3-f3) | [`ship-harness.md`](reference/ship-harness.md) status banner | `ss-8s1` | 770 lines of review, 0 of implementation. Verify `-R` resolves to `fiazsami/*` before any real run. |
@@ -68,9 +68,10 @@ If only three things are done, do these, in this order:
    it is the smoke detector `P7` was written about, chirping steadily with the
    sensor unplugged.
 2. **I6** — decide `impCubeVolume`. Unchanged as an argument, but the first run
-   sharpened it: those 525 regions are 53% of helios' addressable denominator, so
-   they now cap what any loop run there can achieve at ~48% as well as being the
-   phase-2 gate.
+   settled it: those 525 regions are 53% of helios' addressable denominator, and
+   the run **covered 100% of bucket A**, stopping at the resulting ceiling of
+   46.4%. There is no longer any coverage work available on helios that does not
+   go through this decision.
 3. **I15** — run the loop again, on hyperspace. **I9** proved the machinery
    works; it could not reach the marginal-gain stop rule, which was the point.
    That rule is still the only stage never executed.

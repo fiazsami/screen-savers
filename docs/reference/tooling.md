@@ -18,9 +18,11 @@ point there.
 > Two stages of it remain unexercised, and both are named below where they are
 > described: the **marginal-gain floor** never evaluated, because the queue
 > emptied in one iteration and the loop stopped on `queue empty`
-> ([`I15`](../improvements.md)); and **Stage 4** was a no-op, because every
-> `refactor_first` entry belonged to `ss-aio`. No refactorer has ever been
-> dispatched by the loop.
+> ([`I15`](../improvements.md)); and **Stage 4** was a no-op, because the triager
+> emitted `refactor_first: []` — the 23 bucket-B entries went to `needs_human` as
+> a single summarised row and never entered the queue at all. No refactorer has
+> ever been dispatched by the loop, and the path by which B entries *would* reach
+> one has never been exercised either.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) for what the run
 > found out, most of which was about the harness rather than the coverage.
@@ -230,20 +232,27 @@ inline is how the loop runs out of context three iterations in.
 The threshold is measured against the **addressable ceiling**, not raw coverage
 (`INV3`).
 
-> **Known limit — the ceiling is not the reachable ceiling, and it is not
-> computed in one metric.** `addressable = covered ÷ (all regions − C regions)`
-> leaves bucket **B** in the denominator, but B is by definition the work that
-> cannot be done until something is refactored. On helios, `ss-aio`'s 525 blocked
-> regions are 53% of the 980-region denominator, so the whole queue could not have
-> taken it past ~48% — against a default threshold of 80. Stage 2 checks whether
-> the ceiling already *meets* the threshold; nothing checks whether it can ever
-> reach it, so the first run was guaranteed from the outset to stop on some other
-> condition.
+> **Known limit — `addressable` is wrong in three ways, and they partly cancel.**
+> Do not read a single reported figure as either the achieved coverage or the
+> reachable one.
 >
-> Separately, Stage 5 defines `addressable` as the gate's coverage over the
-> ledger's denominator — but the gate measures **lines** and the ledger counts
-> llvm-cov **regions**. The quotient is meaningless; the first run's figures came
-> from re-running the classifier instead. See
+> 1. **Bucket B inflates the denominator.** `addressable = covered ÷ (all
+>    regions − C regions)` leaves B in, but B is by definition the work that
+>    cannot be done until something is refactored. On helios, `ss-aio`'s 525
+>    blocked regions are 53% of the 980-region denominator, putting the reachable
+>    ceiling at `455 ÷ 980` = **46.4%** — against a default threshold of 80.
+> 2. **The numerator and denominator count different populations.**
+>    `tools/triage_classify.py` divides *total* covered regions, including
+>    bucket C's, by a denominator that excludes bucket C. The first run therefore
+>    reported **51.8%** while having covered 46.4% of what the metric claims to
+>    measure — a figure above the structural ceiling, which should be impossible.
+> 3. **Stage 5 specifies dividing a line count by a region denominator** — the
+>    gate measures lines, the ledger counts llvm-cov regions.
+>
+> Stage 2 checks whether the ceiling already *meets* the threshold; nothing checks
+> whether it can ever reach it, so the first run was guaranteed from the outset to
+> stop on some other condition. It covered **100% of bucket A** and stopped at its
+> structural ceiling exactly. See
 > [`L4-F4`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f4),
 > [`L4-F5`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f5) and
 > [`I14`](../improvements.md).
