@@ -53,7 +53,7 @@ Stop and ask rather than guessing if any of this does not hold.
    that one. Any file they do not ignore will do it.)
 2. No submodule may be in detached HEAD.
 3. Read `CLAUDE.md`'s branch policy. It is authoritative; the rest of this file
-   assumes it. Then create the branches:
+   assumes it. Then set up the branches:
    - superproject: `test/coverage-<target>` off its default branch,
    - each target submodule: `test/coverage-loop` off *its* default branch.
 
@@ -114,8 +114,8 @@ On iterations after the first, tell it to re-triage **only the entries still
 open** — everything already committed or already reported blocked is out of
 scope, and re-deriving them wastes a full run of the classifier.
 
-If the addressable ceiling already meets the threshold, skip to Stage 5's exit
-path. If `testable` and `refactor_first` are both empty, the loop is done
+If the addressable ceiling already meets the threshold, skip to the exit path
+below. If `testable` and `refactor_first` are both empty, the loop is done
 whatever the number says; report the ceiling and why it stopped there.
 
 ---
@@ -310,7 +310,10 @@ against a collapsing gain is not.
    next one, and the failure surfaces only when someone tries again. After the
    merge rather than after the bump — until the superproject PR lands, the
    default branch is not yet where the pointer says it is.
-6. Close or update the `bd` issues, and file one for every blocked entry.
+6. Close or update the `bd` issues, and file one labelled
+   `coverage-loop-blocked` for every blocked entry — same label Stage 4 uses,
+   since Stage 0 step 6 counts them together and an unlabelled escalation is
+   invisible to it.
 7. Delete the branches this run created, in every repo — the local branch and
    the remote one:
 
