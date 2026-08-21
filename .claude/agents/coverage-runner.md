@@ -24,9 +24,11 @@ this session and just need the number.
 
 ## Reading the result
 
-The top-level exit code is 0 or 1; a `2` from an individual submodule is folded
-into the overall `1`, so the exit code alone does not tell you which kind of
-failure happened. Read stderr to classify it:
+The exit code classifies the failure. `1` is the gate failing on the numbers;
+`2` is a run that produced no trustworthy number at all — a build error, a
+config error, or a red suite. Across several submodules the worst status wins,
+so a `2` anywhere means read the build log before you read the coverage table.
+Read stderr for which of the three it was:
 
 | stderr says | it is |
 |---|---|

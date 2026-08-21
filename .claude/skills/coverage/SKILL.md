@@ -19,7 +19,9 @@ what a git hook or CI would call, so its exit code is the verdict.
 ```
 
 A non-zero exit is not automatically a coverage failure: `1` is the gate
-failing, `2` is a configuration or build error. Say which one happened.
+failing on the numbers, `2` is a run that produced no trustworthy number — a
+configuration error, a build error, or a red suite. Over several submodules the
+worst status wins. Say which one happened.
 
 ## Reporting back
 
@@ -48,8 +50,10 @@ Work out which of these it is before proposing a fix:
 - **Build or link error (exit 2)** — usually a source needing a framework the
   config does not list, or a file that cannot compile outside the Xcode target.
   The script prints which.
-- **Tests exited non-zero** — coverage is deliberately not reported for a
-  failed run. Fix the test first; a partial run's number is meaningless.
+- **Tests exited non-zero (exit 2)** — coverage is deliberately not reported
+  for a failed run. Fix the test first; a partial run's number is meaningless.
+  It reports as 2 rather than as the test binary's own status, so that a suite
+  exiting 1 is not mistaken for a coverage regression.
 
 The script prints the prohibitions itself when it fails, because they are
 needed whether or not anyone loaded this skill. They hold here too: editing a
