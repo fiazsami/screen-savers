@@ -19,6 +19,14 @@ Never commit directly to a repository's **default branch**. That means `main` in
 
 The submodules keep `master` deliberately: it matches their upstreams, so pulling upstream changes into the forks stays friction-free.
 
+The rule is enforced, not just stated: a `PreToolUse` hook
+(`.claude/hooks/guard-default-branch.py`) refuses a `git commit` made while HEAD
+is a default branch, and a `git push` whose explicit destination is one. It reads
+each repo's default branch from `origin/HEAD` rather than assuming a name, so the
+superproject and the submodules are covered by the same check. It is a backstop
+for the honest mistake; it is not a security boundary, and it does not remove the
+need to read this section.
+
 ### Branch names
 
 `<type>/<topic>`, where `<type>` is one of `feat`, `fix`, `chore`, `docs`, or `test`:
