@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "screen_savers",
+  "project_id": "0828a633-6611-472b-a7dd-f9455774588f"
+}
