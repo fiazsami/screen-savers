@@ -49,14 +49,20 @@ Stop and ask rather than guessing if any of this does not hold.
 
 ## Stage 1 — measure
 
-Dispatch **coverage-runner** over the target.
+**Iteration 1 only.** Dispatch **coverage-runner** over the target and record
+the baseline percentage in the loop log.
 
-If it returns `suite-red` or `build-error`, **stop the loop and report**. There
-is no baseline to improve on, and tests written on top of a broken build are
-tests nobody has run. Fixing that is its own task; file it with `bd` and hand
-back.
+On iterations 2 and 3, do not dispatch it. Nothing has touched the tree since
+the previous iteration's Stage 5 measured it, and `tools/coverage.sh` wipes and
+rebuilds `.coverage-build/<submodule>/` on every invocation — so a second run
+here is a full rebuild that can only reproduce the number already sitting in
+`.claude/artifacts/loop-log.json`. Read it from the previous entry's `coverage`
+and `addressable` fields instead.
 
-Record the baseline percentage in the loop log.
+If iteration 1 returns `suite-red` or `build-error`, **stop the loop and
+report**. There is no baseline to improve on, and tests written on top of a
+broken build are tests nobody has run. Fixing that is its own task; file it with
+`bd` and hand back.
 
 ---
 
@@ -136,8 +142,12 @@ wave — with the submodule and the branch point.
   PR body.
 - `pass` → continue.
 
-Then re-dispatch **coverage-runner** and append the iteration to
-`.claude/artifacts/loop-log.json`:
+The verifier ran the gate from a clean state as its first check, and reports
+the numbers from that run. **Do not re-dispatch coverage-runner here** — it
+would rebuild the same tree to produce the same figure. Take `coverage`
+and `BASELINE_MOVED` from the verifier's report; `addressable` is that coverage
+over the denominator in this iteration's triage ledger, which Stage 2 already
+gave you. Append the iteration to `.claude/artifacts/loop-log.json`:
 
 ```json
 {"iteration": 1, "target": "<name>", "bd": "<id>", "baseline": 0.0,
