@@ -2,6 +2,31 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
+## Branch & PR Policy
+
+**This section is authoritative.** Where anything else in this file conflicts with it — including the generated **Session Completion** block below — this section wins.
+
+Never commit directly to a repository's **default branch**: `main` in this superproject, `master` in `helios`, `hills`, and `hyperspace`. Every change, in every repo, reaches its default branch through a pull request.
+
+Branches are named `<type>/<topic>`, where `<type>` is `feat`, `fix`, `chore`, `docs`, or `test` — e.g. `feat/metal-renderer`, `chore/coverage-gate`.
+
+```bash
+bd update <id> --claim                    # claim the issue before writing code
+git switch main && git pull --rebase      # branch from an up-to-date default branch
+git switch -c <type>/<topic>              # (git switch master in the submodules)
+# ... change, run quality gates ...
+git push -u origin <type>/<topic>         # push the branch, never the default branch
+gh pr create --fill
+                                          # WAIT for Claude Code Review, address findings
+gh pr merge --squash --delete-branch      # merge only after review is clean
+```
+
+Waiting for Claude Code Review is not optional. Do not merge a PR it has not reported on.
+
+A change inside a submodule is **two** PRs, in order: one in the submodule's own repo merged to its `master`, then one here bumping the submodule pointer to that merged commit. Never pin the superproject to a commit that isn't on the submodule's default branch. Never commit inside a submodule in detached HEAD — `git switch master` first.
+
+The full statement of this policy, with rationale, is in [CLAUDE.md](CLAUDE.md#branch--pr-policy).
+
 > **Architecture in one line:** Issues live in a local Dolt database
 > (`.beads/dolt/`); cross-machine sync uses `bd dolt push/pull` (a
 > git-compatible protocol), stored under `refs/dolt/data` on your git
@@ -94,3 +119,7 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+### What "complete" means here
+
+The generated block above is beads boilerplate and stops at `git push`, describing a commit-to-default-branch flow this project does not use. A session is complete when the work is on a `<type>/<topic>` branch, a PR is open, Claude Code Review has reported and its findings are addressed, and the PR is merged with its branch deleted. "Work is NOT complete until `git push` succeeds" still holds — it means pushing the **feature branch**, never `main`.
