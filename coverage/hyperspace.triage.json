@@ -19,10 +19,10 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 136,
+    "testable as-is": 137,
     "needs refactoring first": 10,
     "not worth testing": 67,
-    "unclassified -- needs a human call": 1
+    "unclassified -- needs a human call": 0
   },
   "entries": [
     {
@@ -375,11 +375,11 @@
       "reason": "identical to the helios copy already judged A: the span only failed because #if USE_TRIANGLE_STRIPS splits the loop body across arms, and the function itself is pure marching-cubes reachable through impCubeVolume",
       "set_by": "human",
       "shared_copy": "identical",
+      "decided": "2026-08-21",
       "rule_would_say": {
         "verdict": "?",
         "rule": "unknown:span"
-      },
-      "decided": "2026-08-21"
+      }
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::findcornervalues(unsigned int, unsigned int, unsigned int)",
@@ -1310,7 +1310,7 @@
       "name": "rgb2hsl(float, float, float, float&, float&, float&)",
       "line": 26,
       "regions": 35,
-      "uncovered_regions": 35,
+      "uncovered_regions": 0,
       "verdict": "A",
       "rule": "a:pure",
       "reason": "external linkage, deterministic, no global state, no API calls",
@@ -1323,7 +1323,7 @@
       "name": "hsl2rgb(float, float, float, float&, float&, float&)",
       "line": 124,
       "regions": 16,
-      "uncovered_regions": 16,
+      "uncovered_regions": 1,
       "verdict": "A",
       "rule": "a:pure",
       "reason": "external linkage, deterministic, no global state, no API calls",
