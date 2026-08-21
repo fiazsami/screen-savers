@@ -506,6 +506,13 @@ def set_verdict(ledger_path, target, verdict, reason):
     entry["reason"] = reason or entry["reason"]
     entry["decided"] = datetime.date.today().isoformat()
 
+    # The counts block is what the triager and /coverage-loop Stage 2 report as
+    # the bucket split, so it has to move with the entry it summarises. Without
+    # this it stayed at whatever the last full run produced and quietly diverged
+    # by one function per --set.
+    counts, _ = summarise(data["entries"])
+    data["counts"] = {VERDICTS[key]: counts[key] for key in counts}
+
     with open(ledger_path, "w") as handle:
         json.dump(data, handle, indent=2)
         handle.write("\n")

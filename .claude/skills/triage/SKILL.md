@@ -173,8 +173,16 @@ If you think the scope genuinely should change, say so and explain why.
   It has bitten once already, and expensively. Every `impCubeVolume` method was
   classified `A`; none of them names a GL call. But `impCubeVolume`'s constructor
   allocates an `impSurface`, whose constructor calls `glGenBuffers`, so nothing
-  in the class can be constructed without a GL context — roughly 300 regions
-  that read as available work and were not.
+  in the class can be constructed without a GL context. Counted rather than
+  estimated, once the check below was actually run against the ledger: **19
+  functions and 469 regions per twin** — `impCubeVolume` entire, plus
+  `impSurface`'s three instance mutators, which inherit the same dead
+  constructor. That is 69% of what the `A` bucket claimed was reachable work.
+  All 38 are now recorded `B` with `set_by: human`; see `ss-aio`.
+
+  Note what did *not* move: `sortableCube`'s comparison operators live in the
+  same file and are free functions, so they construct nothing and are genuinely
+  `A`. The blind spot is scoped to instance methods, not to files.
 
   A false `A` is the cheap direction to be wrong — it wastes an attempt, where a
   false `C` deletes work from the queue permanently — but it is not free, and at
