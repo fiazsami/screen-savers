@@ -13,7 +13,7 @@ implications for whether the reasoning still applies.
 | [L1](2026-08-21-doctrine-self-review.md) | 2026-08-21 | the doctrine behind `.claude/` and `tools/` | 7 | F4 (partial: F1, F2, F5) |
 | [L2](2026-08-21-ship-harness-review.md) | 2026-08-21 | the proposed ship harness | 32 | F12, F25 (F3 stale) |
 | [L3](2026-08-21-phase-1-retrospective.md) | 2026-08-21 | phase 1 as built | 10 | F3–F6 (F1 partial, F2 closed) |
-| [L4](2026-08-21-first-coverage-loop-run.md) | 2026-08-21 | the first `/coverage-loop` run | 10 | F2–F6, F8, F9 |
+| [L4](2026-08-21-first-coverage-loop-run.md) | 2026-08-21 | the first `/coverage-loop` run | 10 | F3–F6, F8, F9 (F2 closed) |
 
 ## Status vocabulary
 

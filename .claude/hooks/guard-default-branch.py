@@ -21,6 +21,13 @@ The default branch is read from `origin/HEAD` rather than assumed, so this works
 unchanged in the superproject and in submodules that name theirs differently.
 When origin/HEAD is not set it falls back to whichever of main/master exists.
 
+Which repository a call belongs to is decided by tracking `cd` across the
+command line, not by the payload's cwd alone. The payload reports the *session*
+directory, so `cd helios && git commit` used to resolve against the superproject
+and check the wrong repo's branch -- silently, because it fails open. That
+covered none of the eight submodule commits in the first /coverage-loop run
+(`ss-1sp`); `test_guard_default_branch.py` beside this file pins it.
+
 Reads the hook payload on stdin. Exit 2 blocks the call and shows stderr to the
 model; exit 0 allows it. Anything unexpected allows -- a guard that fails closed
 on its own bugs would be worse than the problem. Every invocation, allowed or
@@ -33,8 +40,11 @@ own invocation -- the payload carries `./tools/ship.sh helios`, never the `gh`
 call inside it -- so the clause could only catch a merge someone typed by hand,
 which is the path a harness exists to stop using. parse() also yields only
 invocations whose argv[0] is `git`, so it would be a rewrite rather than a
-clause, and its dirty-tree check would read the wrong repository, since cwd is
-the superproject while the script cds into the submodule. The case it targeted,
+clause. (The other objection recorded here -- that such a check would read the
+wrong repository, because cwd is the superproject while the script cds into the
+submodule -- was a correct description of a real defect, filed later as `ss-1sp`
+and fixed above. It was noticed here, about a hypothetical clause, and never
+connected to the guard's own resolution.) The case it targeted,
 merging a PR that does not contain what is on disk, cannot arise in a script
 that pushes before it polls. The risk a ship harness does introduce is merging
 before review, which a PreToolUse hook cannot see either; that belongs in the
@@ -85,16 +95,53 @@ def default_branch(repo):
     return None
 
 
-def parse(command):
-    """Yield (repo_argument, subcommand, remaining_args) for each git call in a
-    shell command. Splitting on the usual separators is enough here: the point is
-    to catch an ordinary mistake, not to defeat someone who is trying."""
+def apply_cd(directory, args):
+    """The directory a `cd` leaves the shell in, as far as we can tell.
+
+    Only resolvable moves are applied, and a move to somewhere that does not
+    exist is not applied at all -- that `cd` would fail, leaving the shell where
+    it was under `;` and short-circuiting the rest under `&&`.
+    """
+    targets = [arg for arg in args if not arg.startswith("-")]
+    if not targets:
+        return os.path.expanduser("~")  # bare `cd` goes home; nothing of ours is there
+    if targets[0] == "-":
+        return directory  # the previous directory, which we do not track
+    candidate = os.path.normpath(os.path.join(directory, targets[0]))
+    return candidate if os.path.isdir(candidate) else directory
+
+
+def parse(command, cwd):
+    """Yield (directory, repo_argument, subcommand, remaining_args) for each git
+    call in a shell command. Splitting on the usual separators is enough here:
+    the point is to catch an ordinary mistake, not to defeat someone who is
+    trying.
+
+    `directory` is the one the call will actually run in. Tracking `cd` across
+    the pieces is the whole reason this takes `cwd`: the payload's cwd is the
+    *session* directory, so resolving against it alone checks the superproject
+    for `cd helios && git commit` -- which is how an agent working inside a
+    submodule naturally writes it, and which therefore went unguarded entirely
+    until the first /coverage-loop run counted the hook's own decisions
+    (`ss-1sp`).
+
+    A `cd` is applied whatever separator precedes it, because whether it
+    succeeds is a question about the filesystem and we can just ask.
+    """
+    directory = cwd
     for piece in re.split(r"&&|\|\||;|\|", command):
         try:
             words = shlex.split(piece)
         except ValueError:
             continue
-        if not words or os.path.basename(words[0]) != "git":
+        if not words:
+            continue
+
+        if words[0] == "cd":
+            directory = apply_cd(directory, words[1:])
+            continue
+
+        if os.path.basename(words[0]) != "git":
             continue
 
         repo, index = None, 1
@@ -107,7 +154,7 @@ def parse(command):
             else:
                 index += 1
         if index < len(words):
-            yield repo, words[index], words[index + 1:]
+            yield directory, repo, words[index], words[index + 1:]
 
 
 def refuse(reason, message):
@@ -131,20 +178,24 @@ def main():
     cwd = payload.get("cwd") or os.getcwd()
     checked = []
 
-    for repo_arg, subcommand, rest in parse(command):
+    for directory, repo_arg, subcommand, rest in parse(command, cwd):
         if subcommand not in COMMIT_CREATING and subcommand != "push":
             continue
         # A fast-forward merge moves a ref; it cannot write a commit.
         if subcommand == "merge" and "--ff-only" in rest:
             continue
 
-        repo = os.path.join(cwd, repo_arg) if repo_arg else cwd
+        repo = os.path.join(directory, repo_arg) if repo_arg else directory
         if not os.path.isdir(repo):
             continue
         protected = default_branch(repo)
         if not protected:
             continue
         name = os.path.basename(os.path.abspath(repo))
+        # What to type from where the session actually is, which is not
+        # necessarily where this call runs.
+        hint = repo_arg or (os.path.relpath(repo, cwd) if os.path.abspath(repo)
+                            != os.path.abspath(cwd) else ".")
 
         if subcommand in COMMIT_CREATING:
             branch = git(repo, "symbolic-ref", "--short", "HEAD")
@@ -161,8 +212,8 @@ def main():
                     f"Blocked: `git {subcommand}` from a detached HEAD in {name}.\n"
                     f"The commit would land on no branch, and CLAUDE.md forbids it "
                     f"in a submodule for that reason.\nAttach first: "
-                    f"git -C {repo_arg or '.'} switch <branch>, or "
-                    f"git -C {repo_arg or '.'} switch -c <type>/<topic>"
+                    f"git -C {hint} switch <branch>, or "
+                    f"git -C {hint} switch -c <type>/<topic>"
                 )
             if branch == protected:
                 refuse(
@@ -170,7 +221,7 @@ def main():
                     f"Blocked: `git {subcommand}` on '{protected}' in {name}, which is its "
                     f"default branch.\nThe branch policy in CLAUDE.md routes every "
                     f"change through a pull request.\nCreate a <type>/<topic> branch "
-                    f"first: git -C {repo_arg or '.'} switch -c <type>/<topic>"
+                    f"first: git -C {hint} switch -c <type>/<topic>"
                 )
         else:
             # Only an explicit destination is checkable here; a bare `git push`

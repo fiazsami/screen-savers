@@ -8,7 +8,7 @@
 | | finding | kind | action |
 | --- | --- | --- | --- |
 | [F1](#l4-f1) | the loop ran end to end, and the result is real | good | [`I9`](../improvements.md) **closed** |
-| [F2](#l4-f2) | the guard protected none of the eight submodule commits | **defect** | [`I12`](../improvements.md) |
+| [F2](#l4-f2) | the guard protected none of the eight submodule commits | **defect** | [`I12`](../improvements.md) **closed** |
 | [F3](#l4-f3) | two of the eight produced no guard record at all | defect | [`I13`](../improvements.md) |
 | [F4](#l4-f4) | the threshold was unreachable before the run started | design | [`I14`](../improvements.md) |
 | [F5](#l4-f5) | `addressable` divides a line count by a region denominator | design | [`I14`](../improvements.md) |
@@ -77,6 +77,21 @@ words on because it is the easiest to get wrong.
 `I11`/`ss-mqv` is the same root cause seen from the other side: the parser reads
 the command as text while the resolver reads state from before it runs. They
 should be fixed together.
+
+> **Status (2026-08-21): closed.** The guard now tracks `cd` across the command
+> line, so a call is resolved against the directory it will actually run in.
+> `cd hills && git commit` with hills on `master` refuses, naming hills.
+> `.claude/hooks/test_guard_default_branch.py` pins it — 16 cases, 7 of which
+> fail against the version this finding describes.
+>
+> `I11` was **not** fixed alongside it, despite the paragraph above. Tracking a
+> `switch` is not symmetric with tracking a `cd`: whether a directory exists is a
+> question about the filesystem, and can be asked; whether a `git switch -c` will
+> succeed is not, so assuming it would is how a commit reaches a default branch
+> across a `;`. `I11` still fails safe and still costs a retry.
+>
+> [`F3`](#l4-f3) — the two commits with no record at all — is untouched and still
+> open as `I13`.
 
 ### L4-F3
 **Two of the eight commits produced no guard record at all.** Eight commits, six
