@@ -1128,7 +1128,7 @@
       "rule": "b:api-coupled",
       "reason": "calls glGenBuffers -- needs a context, or the call lifted out behind a seam",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::~impSurface()",
@@ -1141,7 +1141,7 @@
       "rule": "b:api-coupled",
       "reason": "calls glDeleteBuffers -- needs a context, or the call lifted out behind a seam",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::reset()",
@@ -1154,7 +1154,7 @@
       "rule": "c:trivial-accessor",
       "reason": "branchless setter: 4 plain assignment(s), nothing to get wrong",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::addTriStripLength(unsigned char)",
@@ -1167,7 +1167,7 @@
       "rule": "a:pure",
       "reason": "external linkage, deterministic, no global state, no API calls",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::addIndex(unsigned int)",
@@ -1180,7 +1180,7 @@
       "rule": "a:pure",
       "reason": "external linkage, deterministic, no global state, no API calls",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::addVertex(float*)",
@@ -1193,7 +1193,7 @@
       "rule": "a:pure",
       "reason": "external linkage, deterministic, no global state, no API calls",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impSurface.cpp::impSurface::draw()",
@@ -1206,7 +1206,7 @@
       "rule": "b:api-coupled",
       "reason": "calls glBindBuffer, glBufferData, glDisableClientState -- needs a context, or the call lifted out behind a seam",
       "set_by": "rule",
-      "shared_copy": "diverged"
+      "shared_copy": "identical"
     },
     {
       "id": "Implicit/impTorus.cpp::impTorus::value(float*)",

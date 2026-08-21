@@ -11,9 +11,11 @@
     "Note the include style: this repo uses <rsMath/rsMath.h>, so the repo root",
     "is on the include path rather than each source directory.",
     "OpenGL is linked because this repo's Implicit/impSurface.cpp still calls it",
-    "from draw() and the destructor. Helios de-GL'd its copy of that same file",
-    "during its port; the two have diverged. Drop the framework once hyperspace",
-    "is ported, or once the shared core is extracted and unified."
+    "from draw() and the destructor. Helios carries the same GL-coupled copy --",
+    "it had de-GL'd it during its Metal port, but that fork was deleted and",
+    "re-forked back to a pre-port state, so the two agree again. Drop the",
+    "framework once hyperspace is ported, or once the shared core is extracted",
+    "and unified."
   ],
 
   "metric": "lines",
