@@ -1,13 +1,24 @@
 {
   "_scope": [
-    "The denominator is the code that can run without a host process or a GPU.",
+    "Helios is not ported yet, so the denominator is only the shared C++ core",
+    "that already compiles without a GL context.",
     "Deliberately outside it, and why:",
-    "  HeliosView.mm      AppKit configure sheet; needs legacyScreenSaver to host it",
-    "  HeliosRenderer.mm  Metal pipeline setup; needs a device and a drawable",
-    "  Shaders.metal      not instrumentable by llvm-cov at all",
-    "Counting those would cap coverage near 40% and make any threshold arbitrary.",
-    "Sphere-map and matrix math mirrored out of the shaders into testable C++",
-    "belongs in sources and should be covered."
+    "  Helios.cpp         the simulation still calls OpenGL directly",
+    "  rsText/rsText.cpp  builds display lists; GL-coupled",
+    "  HeliosView.mm      AppKit/NSOpenGLView; needs a host process",
+    "As the port replaces those with testable code, move them into sources --",
+    "the ratchet will hold whatever coverage they arrive with.",
+    "Note the include style: this repo uses bare \"rsMath.h\", so each source",
+    "directory goes on the include path rather than just the repo root. This is",
+    "where helios and hyperspace differ -- hyperspace uses <rsMath/rsMath.h>.",
+    "OpenGL is linked because Implicit/impSurface.cpp calls it from draw() and",
+    "the destructor. Drop the framework once helios is ported, or once the",
+    "shared core is extracted and unified.",
+    "",
+    "History: this config previously scoped a Metal port (HeliosRenderer.mm,",
+    "Shaders.metal, and a de-GL'd Helios.cpp). That fork was deleted and",
+    "re-forked; the current remote is at v2.1.1, which predates the port. See",
+    "ss-z2c for redoing it."
   ],
 
   "metric": "lines",
@@ -19,8 +30,7 @@
     "rsMath",
     "Implicit",
     "Rgbhsl",
-    "util",
-    "Helios.cpp"
+    "util"
   ],
 
   "tests": [
@@ -39,6 +49,6 @@
 
   "cxxflags": ["-std=c++17"],
   "cflags": [],
-  "frameworks": [],
+  "frameworks": ["OpenGL"],
   "linkflags": []
 }
