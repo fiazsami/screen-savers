@@ -27,9 +27,28 @@ a loop that keeps spending on a problem that needed a human.
 
 Stop and ask rather than guessing if any of this does not hold.
 
-1. `git status --short` in the superproject and in every target submodule. A
-   dirty tree means work in progress that the loop's commits and resets would
-   destroy. Stop and report what is dirty.
+1. Check the trees:
+
+   ```bash
+   git status --porcelain --ignore-submodules=untracked      # superproject
+   git -C <submodule> status --porcelain                     # each target
+   ```
+
+   A dirty tree means work in progress that the loop's commits and resets would
+   destroy. Stop and report what is dirty, naming the repo it is in.
+
+   Two files are expected and are not "dirty": `coverage/*.triage.json` and
+   `coverage/*.baseline.json` in the superproject. Both are tracked, and Stage 2
+   rewrites the ledgers on every iteration — so without this exception a
+   resumed run trips over what the previous run legitimately produced. Anything
+   else still stops it.
+
+   `--ignore-submodules=untracked` is not optional. Without it, one untracked
+   file anywhere inside a submodule reports the **superproject** as modified —
+   git prints ` M helios` and nothing else — so the run stops citing the wrong
+   repository, with no indication of what to look for or where. (A stray
+   `.DS_Store` is not the example: each submodule's own `.gitignore` covers
+   that one. Any file they do not ignore will do it.)
 2. No submodule may be in detached HEAD.
 3. Read `CLAUDE.md`'s branch policy. It is authoritative; the rest of this file
    assumes it. Then create the branches:
@@ -38,6 +57,13 @@ Stop and ask rather than guessing if any of this does not hold.
 
    The superproject branch carries the moved baselines and, at the end, the
    submodule pointer bumps. The submodule branches carry the tests.
+
+   **If a branch already exists, do not force past it.** A previous run left it
+   there. Either there is a `.claude/artifacts/loop-log.json` describing it — in
+   which case switch onto the branch, read the last iteration, and keep counting
+   from there rather than restarting at 1 — or there is not, and you stop and
+   report. Deleting a branch to make a preflight pass is the exact class of
+   mistake this stage exists to catch.
 4. If a target submodule has no `tests/` directory, the harness comes first and
    comes alone: dispatch one **test-writer** to create `tests/harness.h` and
    `tests/main.cpp` per the `testing` skill, commit that on its own, and only
@@ -210,6 +236,19 @@ an unchanged number is not.
    not yet on the submodule's default branch.
 4. Push the superproject branch, open its PR, wait for review, merge.
 5. Close or update the `bd` issues, and file one for every blocked entry.
+6. Delete the branches this run created, in every repo — the local branch and
+   the remote one:
+
+   ```bash
+   git -C <submodule> branch -d test/coverage-loop
+   git -C <submodule> push origin --delete test/coverage-loop
+   ```
+
+   Nothing else in the harness removes them, and Stage 0 step 3 collides with
+   the stale local branch on the next run. Only after the superproject PR has
+   merged: by then the work is on each default branch and the branch carries
+   nothing. Use `-d`, never `-D` — a branch git refuses to delete as unmerged is
+   telling you something the rest of this step assumed was untrue.
 
 Then report, in this order: the addressable ceiling before and after, the
 commits by submodule, what is still blocked and why, and anything the verifier
