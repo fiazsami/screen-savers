@@ -8,9 +8,14 @@ one side an agent can get wrong without noticing.
 
 Three cases are refused:
 
-  committing while HEAD is the repo's default branch
-  committing while HEAD is detached, which lands the commit on no branch at all
+  creating a commit while HEAD is the repo's default branch
+  creating a commit while HEAD is detached, which lands it on no branch at all
   pushing an explicit refspec whose destination is the default branch
+
+"Creating a commit" is not just `git commit`. cherry-pick, merge, revert, rebase
+and am all write commits, and checking only for the word "commit" let a
+`git cherry-pick` land one on a default branch unnoticed. `merge --ff-only` is
+exempt because it cannot create one.
 
 The default branch is read from `origin/HEAD` rather than assumed, so this works
 unchanged in the superproject and in submodules that name theirs differently.
@@ -51,6 +56,12 @@ except ImportError:  # the log is optional; the check it annotates is not
 
 HOOK = "guard-default-branch"
 FALLBACK_DEFAULTS = ("main", "master")
+
+# Every subcommand that can leave a new commit on the current branch. `pull` is
+# deliberately absent: it is the ordinary way to bring a default branch up to
+# date, and a pull that is not a fast-forward is a rebase or merge the user asked
+# for by name.
+COMMIT_CREATING = ("commit", "cherry-pick", "merge", "revert", "rebase", "am")
 
 
 def git(repo, *args):
@@ -121,7 +132,10 @@ def main():
     checked = []
 
     for repo_arg, subcommand, rest in parse(command):
-        if subcommand not in ("commit", "push"):
+        if subcommand not in COMMIT_CREATING and subcommand != "push":
+            continue
+        # A fast-forward merge moves a ref; it cannot write a commit.
+        if subcommand == "merge" and "--ff-only" in rest:
             continue
 
         repo = os.path.join(cwd, repo_arg) if repo_arg else cwd
@@ -132,7 +146,7 @@ def main():
             continue
         name = os.path.basename(os.path.abspath(repo))
 
-        if subcommand == "commit":
+        if subcommand in COMMIT_CREATING:
             branch = git(repo, "symbolic-ref", "--short", "HEAD")
             if branch is None:
                 # Detached: symbolic-ref exits non-zero, so `branch == protected`
@@ -144,7 +158,7 @@ def main():
                     continue
                 refuse(
                     f"detached HEAD in {name}",
-                    f"Blocked: committing from a detached HEAD in {name}.\n"
+                    f"Blocked: `git {subcommand}` from a detached HEAD in {name}.\n"
                     f"The commit would land on no branch, and CLAUDE.md forbids it "
                     f"in a submodule for that reason.\nAttach first: "
                     f"git -C {repo_arg or '.'} switch <branch>, or "
@@ -152,8 +166,8 @@ def main():
                 )
             if branch == protected:
                 refuse(
-                    f"commit to {protected} in {name}",
-                    f"Blocked: committing to '{protected}' in {name}, which is its "
+                    f"{subcommand} on {protected} in {name}",
+                    f"Blocked: `git {subcommand}` on '{protected}' in {name}, which is its "
                     f"default branch.\nThe branch policy in CLAUDE.md routes every "
                     f"change through a pull request.\nCreate a <type>/<topic> branch "
                     f"first: git -C {repo_arg or '.'} switch -c <type>/<topic>"
@@ -173,7 +187,7 @@ def main():
                     )
 
         checked.append(f"{subcommand} in {name} on {branch or 'detached'}"
-                       if subcommand == "commit" else f"push in {name}")
+                       if subcommand in COMMIT_CREATING else f"push in {name}")
 
     if checked:
         record(HOOK, "allow", "; ".join(checked))
