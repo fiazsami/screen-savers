@@ -28,6 +28,13 @@ import shlex
 import subprocess
 import sys
 
+try:
+    from heartbeat import record
+except ImportError:  # the log is optional; the check it annotates is not
+    def record(*_args, **_kwargs):
+        pass
+
+HOOK = "guard-default-branch"
 FALLBACK_DEFAULTS = ("main", "master")
 
 
@@ -77,7 +84,8 @@ def parse(command):
             yield repo, words[index], words[index + 1:]
 
 
-def refuse(message):
+def refuse(reason, message):
+    record(HOOK, "refuse", reason)
     print(message, file=sys.stderr)
     sys.exit(2)
 
@@ -86,13 +94,16 @@ def main():
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
+        record(HOOK, "skip", "unreadable payload")
         return 0
 
     command = (payload.get("tool_input") or {}).get("command")
     if not isinstance(command, str):
+        record(HOOK, "skip", "no command in payload")
         return 0
 
     cwd = payload.get("cwd") or os.getcwd()
+    checked = []
 
     for repo_arg, subcommand, rest in parse(command):
         if subcommand not in ("commit", "push"):
@@ -117,6 +128,7 @@ def main():
                 if git(repo, "rev-parse", "--verify", "--quiet", "HEAD") is None:
                     continue
                 refuse(
+                    f"detached HEAD in {name}",
                     f"Blocked: committing from a detached HEAD in {name}.\n"
                     f"The commit would land on no branch, and CLAUDE.md forbids it "
                     f"in a submodule for that reason.\nAttach first: "
@@ -125,6 +137,7 @@ def main():
                 )
             if branch == protected:
                 refuse(
+                    f"commit to {protected} in {name}",
                     f"Blocked: committing to '{protected}' in {name}, which is its "
                     f"default branch.\nThe branch policy in CLAUDE.md routes every "
                     f"change through a pull request.\nCreate a <type>/<topic> branch "
@@ -139,10 +152,18 @@ def main():
                 destination = arg.split(":")[-1]
                 if destination in (protected, f"refs/heads/{protected}"):
                     refuse(
+                        f"push to {protected} in {name}",
                         f"Blocked: pushing directly to '{protected}' in {name}.\n"
                         f"Push the feature branch and open a PR instead."
                     )
 
+        checked.append(f"{subcommand} in {name} on {branch or 'detached'}"
+                       if subcommand == "commit" else f"push in {name}")
+
+    if checked:
+        record(HOOK, "allow", "; ".join(checked))
+    else:
+        record(HOOK, "skip", "no git commit or push in command")
     return 0
 
 

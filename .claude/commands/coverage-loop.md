@@ -152,8 +152,18 @@ gave you. Append the iteration to `.claude/artifacts/loop-log.json`:
 ```json
 {"iteration": 1, "target": "<name>", "bd": "<id>", "baseline": 0.0,
  "coverage": 0.0, "addressable": 0.0, "committed": ["<sha> <subject>"],
- "blocked": [{"entry": "...", "why": "..."}], "verdict": "pass"}
+ "blocked": [{"entry": "...", "why": "..."}], "verdict": "pass",
+ "guards": {"guard-default-branch": {"allow": 0, "refuse": 0, "skip": 0},
+            "check-test-syntax": {"allow": 0, "refuse": 0, "skip": 0}}}
 ```
+
+Fill `guards` by counting decisions in `.claude/artifacts/hook-log.jsonl` since
+the previous iteration's entry. Both hooks fail open on their own bugs, so a
+hook that has quietly stopped running looks exactly like a clean iteration —
+these counts are the only thing that tells the two apart. **All-zero counts for
+a hook that should have fired are a finding, not a clean run:** an iteration
+that committed anything must show `guard-default-branch` allows, and one that
+wrote a test file must show `check-test-syntax` allows.
 
 The log is how a resumed session picks up, and how you answer "is this loop
 actually working" with data rather than impression.
