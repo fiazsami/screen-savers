@@ -1,6 +1,6 @@
 ---
 name: triage
-description: Classify the uncovered code in one or all screen saver submodules (helios, hills, hyperspace) as testable as-is, needing a refactor first, or not worth testing. Use when asked what to test next, where the coverage gaps are, why coverage is low, whether a file is worth covering, or to plan test work before writing any.
+description: Classify the uncovered code in one or all screen saver submodules (helios, hills, hyperspace) as testable as-is, needing a refactor first, or not worth testing. Use when asked what to test next, where the coverage gaps are, why coverage is low, whether a file is worth covering, or to plan test work before writing any. This classifies and ranks; it does not write tests or change code.
 ---
 
 # Coverage triage
@@ -19,28 +19,20 @@ region data and classifies every function into one of three buckets:
 classify functions by reading them yourself, and do not reimplement the rules.
 Run the script and report what it found.
 
+```bash
+./tools/triage.sh                    # all submodules
+./tools/triage.sh helios hyperspace  # named ones
+./tools/triage.sh -h                 # flags
+```
+
+Exit `2` means the coverage build failed or a config matched nothing. A build
+error is not a triage result — say which one happened and point at
+`tools/coverage.sh` for the diagnostics.
+
 It works from 0% onwards: with no test drivers, the instrumented objects are
 linked against a stub `main` and llvm-cov enumerates every function with a zero
 count. Region data comes from the gate's own build, so triage classifies exactly
 the functions the gate counts — never a second denominator.
-
-## Running it
-
-```bash
-./tools/triage.sh                    # all submodules
-./tools/triage.sh helios             # one
-./tools/triage.sh helios hyperspace  # several
-```
-
-| Flag | Effect |
-|---|---|
-| `--quiet` | Bucket counts only, no work queue |
-| `--top N` | Rows per list (default 12) |
-| `--keep-regions DIR` | Keep the raw region export instead of a temp dir |
-
-Exit code is `0` on a clean run, `2` when the coverage build failed or a config
-matched nothing. A build error is not a triage result — say which one happened
-and point at `tools/coverage.sh` for the diagnostics.
 
 ## C is the bucket that matters
 
@@ -78,8 +70,9 @@ function), `b:api-coupled` (a GL or Metal call in the way), `b:global-state`,
 `b:nondeterministic`. The group is the size of the refactor, and it tells you
 whether one change unblocks thirty functions or one.
 
-Do not read out the whole ledger. It is checked in at
-`coverage/<name>.triage.json` and it is meant to be diffed, not recited.
+Do not read out the whole ledger, and do not quote counts from memory or from
+this file. The ledger at `coverage/<name>.triage.json` is checked in and meant
+to be diffed; the numbers in it are whatever the last run produced.
 
 ## When the rules can't decide
 
@@ -126,30 +119,7 @@ If you think the scope genuinely should change, say so and explain why.
 - The rules read the function's own source text. They are deliberately regex,
   not a parser: precise on linkage and API calls, weaker on deeply nested
   preprocessor arms — which is what the `?` bucket is for.
-
-## Current state
-
-All three submodules sit at 0% with no test drivers, so every function is
-uncovered and the split below is purely about what is *worth* covering.
-
-| | A | B | C | ? |
-|---|---|---|---|---|
-| helios | 145 fn / 1016 rg | 17 fn / 190 rg | 78 fn / 78 rg | 1 |
-| hyperspace | 136 fn / 914 rg | 10 fn / 47 rg | 67 fn / 67 rg | 1 |
-| hills | 7 fn / 21 rg | 7 fn / 10 rg | 2 fn / 2 rg | 0 |
-
-Roughly 6% of regions across the codebase are C. The shape differs per
-submodule and is worth knowing before proposing work:
-
-- **helios** — the biggest A queue by far, led by `impCubeVolume::makeSurface`
-  and the marching-cubes core. Its B bucket is almost entirely `b:hidden`: the
-  `particle`/`emitter`/`attracter`/`ion` classes are defined inside `Helios.cpp`
-  with no header, so nothing can construct one. Exposing them is the single
-  change that unblocks the most code.
-- **hyperspace** — nearly the same shared core, but `impSurface`'s constructor,
-  destructor and `draw` still call OpenGL where helios's copy no longer does.
-  That divergence is recorded in its config's `_scope`, and triage rediscovers
-  it independently.
-- **hills** — small enough to read in one sitting. The arithmetic helpers
-  (`vectorNormalize`, `cartesianToSpherical`) are file-static, so they are B for
-  want of a header, not for want of testability.
+- helios and hyperspace carry copies of the same C++ core. `shared_copy` marks
+  each entry `identical` or `diverged`; a diverged twin has been touched by a
+  port, which is where the bugs are, so it deserves more attention than its
+  untouched counterpart, not less.
