@@ -129,6 +129,59 @@ The generated block above is beads boilerplate and stops at `git push`. In this 
 
 "Work is NOT complete until `git push` succeeds" still holds — it just means pushing the **feature branch**. Never satisfy it by pushing to `main`.
 
+## What This Project Is For
+
+Two goals, in order. They are tracked as beads epics: `ss-1df` and `ss-23j`.
+
+1. **Build a test harness and raise coverage.** Mostly done as infrastructure --
+   `tools/coverage.sh` is a ratchet gate, `tools/triage.sh` classifies every
+   uncovered function A/B/C, and `/coverage-loop` drives the whole thing.
+2. **Modernize all three screen savers** -- Metal port and macOS updates for
+   helios, hills and hyperspace.
+
+`ss-53w` is the gate between them.
+
+### The gate is not a coverage percentage
+
+This is the part that is easy to get wrong. **Porting moves files *into* the
+coverage scope**, so the measured percentage can fall while the codebase gets
+strictly better. Anything that reads the number alone will call that a
+regression and be wrong.
+
+The gate is a safety net instead: the modules the port feeds are characterized,
+bucket B is cleared or waived in writing, and every new test survives a
+kill-check. It is evaluated per submodule, not for all three at once.
+
+### Coverage is capped by un-ported code
+
+Every `coverage/<name>.json` has a `_scope` block that excludes the GL-coupled
+files and says the scope should grow as the port replaces them. Read the
+denominators before reading the percentages:
+
+| | denominator | what it is |
+| --- | --- | --- |
+| helios | 987 regions | the shared C++ core only -- excludes `Helios.cpp`, `rsText`, `HeliosView.mm` |
+| hyperspace | 987 regions | same core; 13 files call GL |
+| hills | **31 regions** | `Source Code/Camera.m` alone; everything else is GL or Cocoa |
+
+So driving helios to 100% would still leave the actual screen saver untested,
+because it is not in the denominator. And **hills' 100% is a scope artifact, not
+an achievement** -- its coverage is blocked on its port, not the other way
+round. hills is the clearest case of the two goals being mutually enabling
+rather than sequential.
+
+The practical rule: **when a port makes a file testable, move it into that
+config's `sources`.** The ratchet holds whatever coverage it arrives with. That
+is the mechanic that turns phase 2 into coverage, and skipping it quietly caps
+the project.
+
+### Never move the measurement instead of the code
+
+Widening `exclude`, narrowing `sources` to raise a percentage, or hand-editing a
+`*.baseline.json` is a failed review, not a fix. Scope changes are deliberate,
+they go in the config's `_scope` block with a reason, and the ratchet is allowed
+to move only because the code got better.
+
 ## Build & Test
 
 _Add your build and test commands here_
