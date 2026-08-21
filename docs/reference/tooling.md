@@ -9,12 +9,21 @@ The *why* behind these choices lives in [`doctrine.md`](doctrine.md); this
 document is the *what*. Principle and invariant references (`P3`, `INV1`, …)
 point there.
 
-> **Status.** Every piece described below exists and is wired. The loop that
-> composes them has **never been run end to end** — there is no
-> `loop-log.json` and no `queue.json`, and every test in the repo was written by
-> hand outside it. Read this as a specification of built machinery, not a report
-> of machinery in use. See
-> [`L3-F1`](../lessons/2026-08-21-phase-1-retrospective.md#l3-f1).
+> **Status.** Every piece described below exists and is wired, and the loop that
+> composes them **has now run end to end once** — on helios, 2026-08-21, taking
+> it from 20.89% to 63.54% in a single iteration. `queue.json` and
+> `loop-log.json` exist. Read this as a report of machinery that has been used
+> exactly once, by one orchestrator, against one submodule.
+>
+> Two stages of it remain unexercised, and both are named below where they are
+> described: the **marginal-gain floor** never evaluated, because the queue
+> emptied in one iteration and the loop stopped on `queue empty`
+> ([`I15`](../improvements.md)); and **Stage 4** was a no-op, because every
+> `refactor_first` entry belonged to `ss-aio`. No refactorer has ever been
+> dispatched by the loop.
+>
+> See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) for what the run
+> found out, most of which was about the harness rather than the coverage.
 
 Four kinds of thing live here:
 
@@ -193,6 +202,13 @@ blocked report, not a careful-looking refactor with nothing pinning it.
 > HEAD and working-tree state before dispatch and re-checking on report: a tree
 > that moved during a verifier's turn is a failed run, not a finding. That
 > detects, it does not prevent. See `P3` and [`I2`](../improvements.md).
+>
+> The first run demonstrated both halves of this. The fingerprint **worked** —
+> taken before and after, it held, and the verifier's verdict stood. But the
+> read-only `coverage-runner`, which has no fingerprint check at all, wrote three
+> files into the helios working tree and said so itself. Detection is only where
+> it was installed. See
+> [`L4-F8`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f8).
 
 Five checks: the suite is green from clean; the
 measurement wasn't moved (a widened `exclude` or hand-edited baseline is a failed
@@ -214,6 +230,24 @@ inline is how the loop runs out of context three iterations in.
 The threshold is measured against the **addressable ceiling**, not raw coverage
 (`INV3`).
 
+> **Known limit — the ceiling is not the reachable ceiling, and it is not
+> computed in one metric.** `addressable = covered ÷ (all regions − C regions)`
+> leaves bucket **B** in the denominator, but B is by definition the work that
+> cannot be done until something is refactored. On helios, `ss-aio`'s 525 blocked
+> regions are 53% of the 980-region denominator, so the whole queue could not have
+> taken it past ~48% — against a default threshold of 80. Stage 2 checks whether
+> the ceiling already *meets* the threshold; nothing checks whether it can ever
+> reach it, so the first run was guaranteed from the outset to stop on some other
+> condition.
+>
+> Separately, Stage 5 defines `addressable` as the gate's coverage over the
+> ledger's denominator — but the gate measures **lines** and the ledger counts
+> llvm-cov **regions**. The quotient is meaningless; the first run's figures came
+> from re-running the classifier instead. See
+> [`L4-F4`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f4),
+> [`L4-F5`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f5) and
+> [`I14`](../improvements.md).
+
 What normally stops the loop is the **marginal-gain floor** in Stage 5, computed
 from `loop-log.json` — when a further iteration is not buying enough ceiling to
 justify itself. **3 iterations** is the outer bound, not the stop rule. Both
@@ -225,6 +259,14 @@ asserted in prose (`P8`).
 `CLAUDE.md` policy (`test/coverage-<target>` in the superproject,
 `test/coverage-loop` in each submodule). A submodule with no `tests/` gets the
 harness first and alone. Claim a `bd` issue.
+
+> **Known limit.** The clean-tree check exempts `coverage/*.triage.json` and
+> `coverage/*.baseline.json` but not `.beads/`, and claiming that `bd` issue
+> rewrites `.beads/issues.jsonl` — so a strict reading stops every run at its own
+> step 5, and any issue filed mid-run re-dirties the tree. The first run worked
+> around it by committing the tracker state onto the loop's branch before Stage 1.
+> See [`L4-F9`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f9) and
+> [`I16`](../improvements.md).
 
 **Stage 1 — measure.** `suite-red` or `build-error` stops the loop outright.
 
@@ -307,6 +349,33 @@ model.
 
 **It is a backstop for the honest mistake — not a security boundary**, and it
 doesn't remove the need to read the branch policy.
+
+> **Known limit — it does not currently cover submodule commits written with
+> `cd`.** The repository is resolved as `cwd + any -C argument`, where `cwd` is
+> the **session** directory; a `cd` earlier in the same command line does not
+> move it. So `git -C helios commit` is checked against helios, and
+> `cd helios && git commit` is checked against the *superproject* — which is how
+> an agent working inside a submodule naturally writes it. With hills on
+> `master`:
+>
+> ```
+> git -C hills commit -m test     -> refuse | commit on master in hills
+> cd hills && git commit -m test  -> allow  | commit in screen-savers on <branch>
+> ```
+>
+> It fails open, so the bypass is invisible in the log: the allow names a
+> repository and branch that are not the ones being committed to. This was not
+> caught by design review; it was caught by the first `/coverage-loop` run
+> counting hook decisions and finding six allows for eight commits, all six
+> naming the wrong repo. See
+> [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) and
+> [`I12`](../improvements.md).
+>
+> A related gap: two of those eight commits produced **no record at all** and the
+> cause could not be established, because the log stores the decision and not the
+> command that produced it ([`I13`](../improvements.md)). Until both are closed,
+> treat the guard as covering the superproject only, and read `CLAUDE.md`'s
+> branch policy as the actual control for submodules.
 
 ### `check-test-syntax.py` — PostToolUse on `Edit|Write|MultiEdit`
 
