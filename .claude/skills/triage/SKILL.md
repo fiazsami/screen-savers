@@ -181,15 +181,22 @@ If you think the scope genuinely should change, say so and explain why.
   All 38 are now recorded `B` with `set_by: human`; see `ss-aio`.
 
   Note what did *not* move: `sortableCube`'s comparison operators live in the
-  same file and are free functions, so they construct nothing and are genuinely
-  `A`. The blind spot is scoped to instance methods, not to files.
+  same file and are genuinely `A` — not because they are free functions, but
+  because `sortableCube` is two ints and a trivial constructor, so a test can
+  build the arguments they need. The blind spot follows *types*, not files and
+  not linkage.
 
   A false `A` is the cheap direction to be wrong — it wastes an attempt, where a
   false `C` deletes work from the queue permanently — but it is not free, and at
-  class scale it can steer a roadmap. **So when a bucket-A entry is a member
-  function, check what its constructor reaches before trusting the verdict.**
-  The cheapest check is to build a test that does nothing but construct the
-  object; if it cannot, the whole class is really bucket B.
+  class scale it can steer a roadmap. **So when a bucket-A entry needs an object
+  — as its `this`, or as a parameter it cannot be called without — check what
+  that type's constructor reaches before trusting the verdict.** The cheapest
+  check is a test that does nothing but construct the object; if it cannot, the
+  entry is really bucket B, and so is everything else that needs the same type.
+
+  Member function is the common case, not the rule. A free function taking an
+  `impSurface&` is exactly as untestable as an `impSurface` method, because the
+  argument is what cannot be built.
 - helios and hyperspace carry copies of the same C++ core. `shared_copy` marks
   each entry `identical` or `diverged`; a diverged twin has been touched by a
   port, which is where the bugs are, so it deserves more attention than its
