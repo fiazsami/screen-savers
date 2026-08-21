@@ -18,8 +18,10 @@ The threshold is measured against the **addressable ceiling** from triage
 has a denominator full of code nobody should be testing; driving that number to
 80 means writing tests that cannot fail.
 
-Hard cap: **3 iterations.** Not a suggestion — the failure mode this replaces is
-a loop that keeps spending on a problem that needed a human.
+Hard cap: **3 iterations** — the outer bound, not the stop rule. What normally
+stops the loop is the marginal-gain floor in Stage 5, computed from the loop
+log. The failure mode both exist to prevent is a loop that keeps spending on a
+problem that needed a human.
 
 ---
 
@@ -70,6 +72,17 @@ Stop and ask rather than guessing if any of this does not hold.
    then continue. Nothing can fan out until there is exactly one `main` to link
    against.
 5. Claim or file a `bd` issue for this run and note its id in the loop log.
+6. Check the escalation backlog:
+
+   ```bash
+   bd list --status=open --label=coverage-loop-blocked
+   ```
+
+   **More than five open, and you stop.** Escalation is only a successful
+   outcome if escalations get consumed. A loop that keeps filing them onto a
+   pile nobody reads is converting spend into backlog and reporting it as
+   progress — and the entries it would file this run are likely the same ones
+   already sitting there. Report the count and hand back.
 
 ---
 
@@ -149,9 +162,11 @@ risky half of the loop, and an iteration that lands two clean unblockings has
 done well.
 
 - `cleared` → record the commits and the functions unblocked.
-- `partial` or `blocked` → record it, file a `bd` issue with the blocker in the
-  rule's terms and where the next attempt should start, and move on. Do not
-  retry inside this iteration.
+- `partial` or `blocked` → record it, file a `bd` issue labelled
+  `coverage-loop-blocked` with the blocker in the rule's terms and where the
+  next attempt should start, and move on. Do not retry inside this iteration.
+  The label is what Stage 0 step 6 counts, so an escalation filed without it is
+  invisible to the backlog check.
 
 ---
 
@@ -215,14 +230,28 @@ actually working" with data rather than impression.
 |---|---|
 | addressable ≥ threshold | **stop** — exit path below |
 | queue empty | **stop** — exit path below, note the ceiling reached |
-| addressable improved, below threshold, iteration < 3 | **iterate** — back to Stage 1 |
-| addressable did not improve | **stop and escalate** |
+| marginal gain below the floor | **stop and escalate** |
 | the same entry failed in two iterations | **stop and escalate** |
 | iteration 3 finished | **stop** — report where it got to |
+| otherwise, iteration < 3 | **iterate** — back to Stage 2 |
+
+**The floor.** Compare this iteration's `addressable` against the previous
+entry's in `.claude/artifacts/loop-log.json`. Stop and escalate when the gain is
+below **1.0 percentage point**, or below a third of the previous iteration's
+gain. On iteration 1 there is nothing to compare against, so the floor does not
+apply.
+
+This is the loop's own epistemology turned on its own stop rule. The log exists
+so that "is this working" gets answered with data rather than impression — and
+a fixed iteration budget answers exactly that question by impression, in prose,
+forever. A loop whose returns have collapsed has already found the shape of its
+remaining work; another iteration spends the same to learn the same thing. The
+3-iteration cap stays as the backstop for a floor that somehow keeps being
+cleared, but it should rarely be what stops a run.
 
 Escalating means saying which entries stalled and what the next human decision
-is. It is a successful outcome for the loop; grinding a fourth iteration against
-an unchanged number is not.
+is. It is a successful outcome for the loop; grinding a further iteration
+against a collapsing gain is not.
 
 ---
 
