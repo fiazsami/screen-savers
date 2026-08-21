@@ -131,8 +131,23 @@ done well.
 
 ## Stage 5 — verify, then decide
 
+First fingerprint each target submodule:
+
+```bash
+git -C <submodule> rev-parse HEAD
+git -C <submodule> status --porcelain | shasum
+```
+
 Dispatch **verifier** — a fresh agent, never one that authored anything in this
-wave — with the submodule and the branch point.
+wave — with the submodule and the branch point. Take the fingerprint again when
+it reports.
+
+"The verifier cannot edit" was never true: it holds Bash, and `sed -i`, a shell
+redirect and `git commit` are all Bash. The fingerprint is what turns that from
+instructed restraint into a checkable fact, and it catches a mutation by any
+route rather than only the routes someone thought to forbid. **A fingerprint
+that moved is a failed run** — discard the verdict, do not treat the change as a
+finding, and stop for a human.
 
 - `fail` → stop the loop. Report the findings and leave the branch as it is for
   a human. Do not attempt to fix a verifier finding by dispatching another
