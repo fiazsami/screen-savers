@@ -163,6 +163,25 @@ If you think the scope genuinely should change, say so and explain why.
 - The rules read the function's own source text. They are deliberately regex,
   not a parser: precise on linkage and API calls, weaker on deeply nested
   preprocessor arms — which is what the `?` bucket is for.
+- **Coupling a function inherits is invisible.** The rules see what a function
+  says, not what it constructs or calls. A function that touches no API itself,
+  but builds an object whose constructor does, reads as a clean `A` and cannot
+  run at all. This is the one blind spot that produces a **false `A` at scale**:
+  it lands on whole classes rather than single functions, because every method
+  of a class shares its constructor.
+
+  It has bitten once already, and expensively. Every `impCubeVolume` method was
+  classified `A`; none of them names a GL call. But `impCubeVolume`'s constructor
+  allocates an `impSurface`, whose constructor calls `glGenBuffers`, so nothing
+  in the class can be constructed without a GL context — roughly 300 regions
+  that read as available work and were not.
+
+  A false `A` is the cheap direction to be wrong — it wastes an attempt, where a
+  false `C` deletes work from the queue permanently — but it is not free, and at
+  class scale it can steer a roadmap. **So when a bucket-A entry is a member
+  function, check what its constructor reaches before trusting the verdict.**
+  The cheapest check is to build a test that does nothing but construct the
+  object; if it cannot, the whole class is really bucket B.
 - helios and hyperspace carry copies of the same C++ core. `shared_copy` marks
   each entry `identical` or `diverged`; a diverged twin has been touched by a
   port, which is where the bugs are, so it deserves more attention than its
