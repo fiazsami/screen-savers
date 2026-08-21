@@ -25,6 +25,9 @@
 #   --no-notify         Suppress the macOS notification on failure
 #   --quiet             Summary line only, no per-file table
 #   --json DIR          Also write each report as DIR/<submodule>.json
+#   --regions DIR       Also write per-function region data as DIR/<submodule>.json.
+#                       Builds against a stub main when no drivers exist, so the
+#                       region list is available from 0% onwards. Triage reads it.
 #
 set -euo pipefail
 
@@ -37,6 +40,7 @@ UPDATE_BASELINE=0
 NOTIFY=""
 QUIET=0
 JSON_DIR=""
+REGIONS_DIR=""
 TARGETS=()
 
 while [ $# -gt 0 ]; do
@@ -46,7 +50,8 @@ while [ $# -gt 0 ]; do
 		--no-notify) NOTIFY=0; shift ;;
 		--quiet) QUIET=1; shift ;;
 		--json) JSON_DIR="$2"; shift 2 ;;
-		-h|--help) sed -n '3,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+		--regions) REGIONS_DIR="$2"; shift 2 ;;
+		-h|--help) sed -n '3,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
 		-*) echo "coverage: unknown option $1" >&2; exit 2 ;;
 		*) TARGETS+=("$1"); shift ;;
 	esac
@@ -55,8 +60,10 @@ done
 if [ ${#TARGETS[@]} -eq 0 ]; then
 	for config in "$CONFIG_DIR"/*.json; do
 		[ -e "$config" ] || continue
+		# Only <name>.json is a submodule config. The sidecars living beside it --
+		# the ratchet's baseline, triage's ledger -- are data, not targets.
 		case "$config" in
-			*.baseline.json) continue ;;
+			*.baseline.json|*.triage.json) continue ;;
 		esac
 		TARGETS+=("$(basename "$config" .json)")
 	done
@@ -140,64 +147,112 @@ run_one() {
 
 	instrument=(-fprofile-instr-generate -fcoverage-mapping -O0 -g)
 
+	# Compiles the given files, links, runs, and leaves merged profile data at
+	# $build/tests.profdata. Callers pass repo-relative sources; an absolute path
+	# is taken as-is, which is how the generated null driver gets in.
+	#
+	# Every step is status-checked by hand: run_one is invoked with `set +e` so
+	# one submodule's failure cannot abort the others, which also means `set -e`
+	# is not in force in here either.
+	build_and_profile() {
+		rm -rf "$build"
+		mkdir -p "$build/obj"
+
+		# Compile per file so each extension gets the right frontend: .m must not
+		# go through clang++, which would compile it as Objective-C++.
+		objects=()
+		index=0
+		for src in "$@"; do
+			case "$src" in
+				/*) absolute="$src" ;;
+				*) absolute="$root/$src" ;;
+			esac
+			obj="$build/obj/$(printf '%03d' $index)_$(basename "$src").o"
+			case "$src" in
+				*.cpp|*.cc|*.cxx)
+					xcrun clang++ -c "${instrument[@]}" "${cxxflags[@]}" "${includes[@]}" -o "$obj" "$absolute" ;;
+				*.mm)
+					xcrun clang++ -c -ObjC++ "${instrument[@]}" "${cxxflags[@]}" "${includes[@]}" -o "$obj" "$absolute" ;;
+				*.m)
+					xcrun clang -c -ObjC "${instrument[@]}" "${cflags[@]}" "${includes[@]}" -o "$obj" "$absolute" ;;
+				*.c)
+					xcrun clang -c "${instrument[@]}" "${cflags[@]}" "${includes[@]}" -o "$obj" "$absolute" ;;
+				*)
+					echo "coverage: don't know how to compile $src" >&2; return 2 ;;
+			esac
+			if [ $? -ne 0 ]; then
+				echo "coverage: $name failed to compile $src" >&2
+				return 2
+			fi
+			objects+=("$obj")
+			index=$((index + 1))
+		done
+
+		if ! xcrun clang++ "${instrument[@]}" "${linkflags[@]}" -o "$build/tests" "${objects[@]}"; then
+			echo "coverage: $name failed to link" >&2
+			echo "coverage: undefined symbols usually mean a source needs a framework" >&2
+			echo "coverage: add it to \"frameworks\" in $config, or drop the file from \"sources\"" >&2
+			return 2
+		fi
+
+		# A failing test is a failing gate: coverage from a partial run would be a lie.
+		LLVM_PROFILE_FILE="$build/tests.profraw" "$build/tests"
+		status=$?
+		if [ $status -ne 0 ]; then
+			echo "coverage: $name tests exited $status -- not reporting coverage for a failed run" >&2
+			return $status
+		fi
+
+		if ! xcrun llvm-profdata merge -sparse "$build/tests.profraw" -o "$build/tests.profdata"; then
+			echo "coverage: $name failed to merge profile data" >&2
+			return 2
+		fi
+		return 0
+	}
+
+	# Per-function region data for triage. Unlike the gate's summary this is the
+	# full export, so triage classifies the same functions llvm-cov counts rather
+	# than a second denominator parsed out of the sources by hand.
+	write_regions() {
+		mkdir -p "$REGIONS_DIR"
+		if ! xcrun llvm-cov export "$build/tests" \
+			-instr-profile="$build/tests.profdata" > "$build/regions-raw.json"; then
+			echo "coverage: $name failed to export regions" >&2
+			return 2
+		fi
+		python3 "$PARENT/tools/coverage_regions.py" \
+			--export "$build/regions-raw.json" \
+			--config "$config" \
+			--root "$root" \
+			--null-driver "$1" \
+			--out "$REGIONS_DIR/$name.json"
+		return $?
+	}
+
 	# No drivers yet is the expected state until a test target lands. Report it
 	# honestly as 0% rather than erroring, so the ratchet still runs and passes.
+	# Triage still needs the region list in that state, and gets it by linking the
+	# same instrumented objects against a stub main: llvm-cov then enumerates every
+	# function with a zero count, which is exactly what "all of it is uncovered"
+	# means. The gate's verdict is untouched -- it is still 0%, still --no-tests.
 	if [ ${#tests[@]} -eq 0 ]; then
+		if [ -n "$REGIONS_DIR" ]; then
+			driver="$BUILD_ROOT/$name-null-driver.cpp"
+			mkdir -p "$BUILD_ROOT"
+			echo "int main(){return 0;}" > "$driver"
+			build_and_profile "${sources[@]}" "$driver" || return $?
+			write_regions 1 || return $?
+		fi
 		python3 "$PARENT/tools/coverage_report.py" --no-tests "${report_args[@]}"
 		return $?
 	fi
 
-	rm -rf "$build"
-	mkdir -p "$build/obj"
+	build_and_profile "${sources[@]}" "${tests[@]}" || return $?
 
-	# Compile per file so each extension gets the right frontend: .m must not go
-	# through clang++, which would compile it as Objective-C++.
-	# Every step is status-checked by hand: run_one is invoked with `set +e` so
-	# one submodule's failure cannot abort the others, which also means `set -e`
-	# is not in force inside this function.
-	objects=()
-	index=0
-	for src in "${sources[@]}" "${tests[@]}"; do
-		obj="$build/obj/$(printf '%03d' $index)_$(basename "$src").o"
-		case "$src" in
-			*.cpp|*.cc|*.cxx)
-				xcrun clang++ -c "${instrument[@]}" "${cxxflags[@]}" "${includes[@]}" -o "$obj" "$root/$src" ;;
-			*.mm)
-				xcrun clang++ -c -ObjC++ "${instrument[@]}" "${cxxflags[@]}" "${includes[@]}" -o "$obj" "$root/$src" ;;
-			*.m)
-				xcrun clang -c -ObjC "${instrument[@]}" "${cflags[@]}" "${includes[@]}" -o "$obj" "$root/$src" ;;
-			*.c)
-				xcrun clang -c "${instrument[@]}" "${cflags[@]}" "${includes[@]}" -o "$obj" "$root/$src" ;;
-			*)
-				echo "coverage: don't know how to compile $src" >&2; return 2 ;;
-		esac
-		if [ $? -ne 0 ]; then
-			echo "coverage: $name failed to compile $src" >&2
-			return 2
-		fi
-		objects+=("$obj")
-		index=$((index + 1))
-	done
-
-	if ! xcrun clang++ "${instrument[@]}" "${linkflags[@]}" -o "$build/tests" "${objects[@]}"; then
-		echo "coverage: $name failed to link" >&2
-		echo "coverage: undefined symbols usually mean a source needs a framework" >&2
-		echo "coverage: add it to \"frameworks\" in $config, or drop the file from \"sources\"" >&2
-		return 2
+	if [ -n "$REGIONS_DIR" ]; then
+		write_regions 0 || return $?
 	fi
 
-	# A failing test is a failing gate: coverage from a partial run would be a lie.
-	LLVM_PROFILE_FILE="$build/tests.profraw" "$build/tests"
-	status=$?
-	if [ $status -ne 0 ]; then
-		echo "coverage: $name tests exited $status -- not reporting coverage for a failed run" >&2
-		return $status
-	fi
-
-	if ! xcrun llvm-profdata merge -sparse "$build/tests.profraw" -o "$build/tests.profdata"; then
-		echo "coverage: $name failed to merge profile data" >&2
-		return 2
-	fi
 	if ! xcrun llvm-cov export "$build/tests" \
 		-instr-profile="$build/tests.profdata" \
 		-summary-only > "$build/coverage.json"; then

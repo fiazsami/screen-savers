@@ -9,3 +9,5 @@
 
 # Instrumented binaries and profile data from tools/coverage.sh
 .coverage-build/
+
+tools/__pycache__/

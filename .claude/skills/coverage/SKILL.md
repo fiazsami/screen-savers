@@ -48,6 +48,12 @@ If the run reports **0% with "no test drivers configured"**, that is the
 expected state for a submodule whose suite does not exist yet, not a fault.
 Say so plainly rather than presenting it as a failure.
 
+When the question is *what to test next* rather than *how much is covered*, use
+the `triage` skill instead. It classifies the uncovered functions as testable
+as-is, needing a refactor first, or not worth testing at all — and it reports an
+addressable ceiling that excludes the last group, which is a fairer number than
+raw coverage when the denominator holds generated tables and empty destructors.
+
 ## When it fails
 
 Work out which of these it is before proposing a fix:
