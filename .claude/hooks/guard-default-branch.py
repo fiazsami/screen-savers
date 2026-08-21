@@ -18,7 +18,22 @@ When origin/HEAD is not set it falls back to whichever of main/master exists.
 
 Reads the hook payload on stdin. Exit 2 blocks the call and shows stderr to the
 model; exit 0 allows it. Anything unexpected allows -- a guard that fails closed
-on its own bugs would be worse than the problem.
+on its own bugs would be worse than the problem. Every invocation, allowed or
+refused, appends a line to .claude/artifacts/hook-log.jsonl, because fail-open
+with no record is indistinguishable from a hook that has stopped running.
+
+Deliberately out of scope: blocking `gh pr merge`. It was proposed and rejected
+(ss-nla). A ship script that runs the merge internally shows this hook only its
+own invocation -- the payload carries `./tools/ship.sh helios`, never the `gh`
+call inside it -- so the clause could only catch a merge someone typed by hand,
+which is the path a harness exists to stop using. parse() also yields only
+invocations whose argv[0] is `git`, so it would be a rewrite rather than a
+clause, and its dirty-tree check would read the wrong repository, since cwd is
+the superproject while the script cds into the submodule. The case it targeted,
+merging a PR that does not contain what is on disk, cannot arise in a script
+that pushes before it polls. The risk a ship harness does introduce is merging
+before review, which a PreToolUse hook cannot see either; that belongs in the
+script's own preflight.
 """
 
 import json
