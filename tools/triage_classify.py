@@ -504,19 +504,24 @@ def set_verdict(ledger_path, target, verdict, reason):
     # human disagree -- so it has to keep naming the *rule's* verdict. Writing it
     # on every --set means the second override against the same entry records the
     # human's earlier call and labels it the rule's, which is the one thing this
-    # field must never say. A full run has fresh rule output to regenerate it
-    # from; this path has only the stored entry, so it writes the field while the
-    # entry is still the rule's and then leaves it alone.
+    # field must never say.
     #
-    # The two branches mirror build_entries, where the field is present only when
-    # the rule and the human differ: record on first override, and drop it again
-    # if a later override lands back on what the rules said, rather than leaving
-    # a rule_would_say that agrees with the verdict beside it.
-    if entry.get("set_by") != "human":
-        if entry["verdict"] != verdict:
-            entry["rule_would_say"] = {"verdict": entry["verdict"], "rule": entry["rule"]}
-    elif entry.get("rule_would_say", {}).get("verdict") == verdict:
-        del entry["rule_would_say"]
+    # A full run regenerates it from fresh rule output. This path has none, only
+    # the stored entry, so it recovers the rule's verdict from the invariant
+    # build_entries maintains: the field is present exactly when the rule and the
+    # human differ. So a stored rule_would_say holds the rule's verdict, and its
+    # absence means the entry's own verdict is still the rule's -- whether the
+    # entry is rule-set or a human who agreed with it. Either way it survives any
+    # number of later overrides, and the field goes away again if one lands back
+    # on what the rules said, rather than sitting there agreeing with the verdict
+    # beside it.
+    prior = entry.get("rule_would_say")
+    rule_verdict = prior["verdict"] if prior else entry["verdict"]
+    rule_id = prior["rule"] if prior else entry["rule"]
+    if rule_verdict != verdict:
+        entry["rule_would_say"] = {"verdict": rule_verdict, "rule": rule_id}
+    else:
+        entry.pop("rule_would_say", None)
 
     entry["verdict"] = verdict
     entry["set_by"] = "human"
