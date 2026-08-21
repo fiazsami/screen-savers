@@ -19,8 +19,8 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 144,
-    "needs refactoring first": 3,
+    "testable as-is": 143,
+    "needs refactoring first": 4,
     "not worth testing": 67,
     "unclassified -- needs a human call": 0
   },
@@ -279,11 +279,16 @@
       "line": 100,
       "regions": 19,
       "uncovered_regions": 19,
-      "verdict": "A",
+      "verdict": "B",
       "rule": "a:pure",
-      "reason": "external linkage, deterministic, no global state, no API calls",
-      "set_by": "rule",
-      "shared_copy": "identical"
+      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers and segfaults with no GL context. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "set_by": "human",
+      "shared_copy": "identical",
+      "decided": "2026-08-21",
+      "rule_would_say": {
+        "verdict": "A",
+        "rule": "a:pure"
+      }
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface(float, float, float)",
