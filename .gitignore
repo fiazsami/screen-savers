@@ -11,3 +11,9 @@
 .coverage-build/
 
 tools/__pycache__/
+.claude/hooks/__pycache__/
+
+# Working state written by /coverage-loop: the dispatch queue and the iteration
+# log. Machine state for a run in progress, regenerated every time -- committing
+# it would conflict on every branch and tell a later reader nothing.
+.claude/artifacts/

@@ -25,6 +25,8 @@ Waiting for Claude Code Review is not optional. Do not merge a PR it has not rep
 
 A change inside a submodule is **two** PRs, in order: one in the submodule's own repo merged to its `master`, then one here bumping the submodule pointer to that merged commit. Never pin the superproject to a commit that isn't on the submodule's default branch. Never commit inside a submodule in detached HEAD — `git switch master` first.
 
+A `PreToolUse` hook (`.claude/hooks/guard-default-branch.py`) refuses a commit made while HEAD is a default branch, and a push whose explicit destination is one. It reads each repo's default branch from `origin/HEAD` rather than assuming, so it covers the superproject and the submodules alike.
+
 The full statement of this policy, with rationale, is in [CLAUDE.md](CLAUDE.md#branch--pr-policy).
 
 > **Architecture in one line:** Issues live in a local Dolt database
