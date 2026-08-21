@@ -370,11 +370,16 @@
       "line": 619,
       "regions": 25,
       "uncovered_regions": 25,
-      "verdict": "?",
+      "verdict": "A",
       "rule": "unknown:span",
-      "reason": "could not isolate the body from its line span",
-      "set_by": "rule",
-      "shared_copy": "identical"
+      "reason": "identical to the helios copy already judged A: the span only failed because #if USE_TRIANGLE_STRIPS splits the loop body across arms, and the function itself is pure marching-cubes reachable through impCubeVolume",
+      "set_by": "human",
+      "shared_copy": "identical",
+      "rule_would_say": {
+        "verdict": "?",
+        "rule": "unknown:span"
+      },
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::findcornervalues(unsigned int, unsigned int, unsigned int)",
