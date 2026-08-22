@@ -26,49 +26,69 @@ point there.
 > constructor, so `impCubeVolume` — the marching-cubes pipeline, and the whole
 > of the gate's criterion 1 — is constructible outside a renderer. `ss-or3`
 > then characterized it, and `ss-ma1` fixed the first two bugs that
-> characterization found. Per twin, across the three changes:
+> characterization found. Per twin, across every change since:
 >
 > | | bucket A | bucket B | coverage |
 > | --- | --- | --- | --- |
 > | before `ss-aio` | 123 fn / 455 rg, **0 uncovered** | 23 fn / 525 rg | 63.6% |
 > | after `ss-aio` | 141 fn / 935 rg, 457 uncovered | 5 fn / 47 rg | 66.7% |
 > | after `ss-or3` | 145 fn / 943 rg, 242 uncovered | **3 fn / 41 rg** | 83.7% |
-> | after `ss-ma1` + its review follow-up | 147 fn / 951 rg, 242 uncovered | 3 fn / 41 rg | **83.8%** |
+> | after `ss-ma1` + its review follow-up | 147 fn / 951 rg, 242 uncovered | 3 fn / 41 rg | 83.8% |
+> | after `ss-3c8` | 147 fn / 951 rg, 242 uncovered | **2 fn / 38 rg** | 84.0% |
+> | after `ss-c49` + `ss-qsv` | 147 fn / 951 rg, **4 uncovered** | 2 fn / 38 rg | **96.5%** |
 >
-> What is left in bucket B is `impSurface` alone, and none of it is a refactor
-> anyone should do before the port: `draw()` and the destructor genuinely need
-> a GL context, and `addTriStripLength` is dead in this build configuration
-> because `USE_TRIANGLE_STRIPS` is 0. **Criterion 1 is no longer waived** — the
+> What is left in bucket B is `impSurface` alone, and neither entry is a refactor
+> anyone should do before the port: `draw()` and the destructor genuinely need a
+> GL context. `addTriStripLength` was a third until `ss-3c8` found it was
+> guarded `#ifdef` against a macro every call site tests with `#if` — compiled
+> in, callable by nothing, and counted as three permanently uncoverable regions.
+> It is now not compiled, which is the only entry this project has removed from
+> a denominator rather than covered. **Criterion 1 is no longer waived** — the
 > geometry the port consumes is characterized against analytic geometry rather
 > than a golden run, which is what `ss-53w` asked for and could not have.
 >
-> Bucket A's remaining 242 uncovered regions are concentrated: 239 of them sit
-> in the crawl-and-sort paths, mostly because the four-argument `makeSurface`
-> overload is never called and `setCrawlFromSides` is never exercised
-> (`ss-c49`). hills is unchanged — one testable unit, still blocked on its
-> port.
+> Bucket A is down to **4 uncovered regions** per twin, in two functions.
+> `ss-c49` and `ss-qsv` took the other 238: the four-argument `makeSurface`
+> overload had never been called, `crawl_sort` had no other caller, and
+> `setCrawlFromSides` had never been switched on. What is left is two pairs of
+> one-line escapes, and both are declined on purpose rather than pending — a
+> seed landing on a cube the same frame already crawled has no mutation that a
+> test for it catches and nothing else does, and the walk stepping out of the
+> volume is `ss-raf`'s to decide before anyone pins it. hills is unchanged —
+> one testable unit, still blocked on its port.
 >
 > Two stages have **never executed**, and `ss-aio` does not change that for
 > either of them. Both are named below where they are described.
 >
 > The **marginal-gain floor** was unreachable in principle while bucket A was
 > empty, and is not any more — but the decision table stops on `queue empty`,
-> and both runs emptied a 97-entry queue in one iteration. The six entries
+> and both runs emptied a 97-entry queue in one iteration. The two entries
 > bucket A now holds will not take longer. Exercising it still means a fixture
 > ([`I17`](../improvements.md)).
 >
 > **Stage 4** was never blocked by `ss-aio` at all. Bucket B held 23 entries
 > during both runs and Stage 4 was a no-op regardless, because the triager
 > emitted `refactor_first: []` and sent them to `needs_human` as a single
-> summarised row. The 3 entries left are the same shape and more so: `draw()`
-> and the destructor need a real GL context, and `addTriStripLength` is dead
-> code in this build configuration. None is a refactor a subagent should
-> attempt, so a third run emits `refactor_first: []` again. No refactorer has
-> ever been dispatched, and nothing here makes one more likely.
+> summarised row. The **2** entries left are the same shape and more so:
+> `draw()` and the destructor need a real GL context. Neither is a refactor a
+> subagent should attempt, so a third run emits `refactor_first: []` again. No
+> refactorer has ever been dispatched, and nothing here makes one more likely.
 >
-> `ss-or3` is why there are 3 rather than 5. The other two mutators, `addIndex`
-> and `addVertex`, were `B` for want of an observer; that change added const
-> accessors to `impSurface` and they are now fully covered through them.
+> Bucket B went **23 → 5 → 3 → 3 → 2 → 2** down the table, and the three steps
+> that moved it did so in three different ways — which is the point, because
+> the count alone says none of it. `ss-aio` took it 23 → 5, the largest move
+> here, by making `impSurface` constructible without a GL context: eighteen
+> entries stopped being blocked and became testable, which is why bucket A
+> gains exactly those eighteen functions on the same row. `ss-or3` took it
+> 5 → 3 by giving `addIndex` and `addVertex` the observer they were `B` for
+> want of; both are now covered through it. `ss-3c8` took it 3 → 2 by removing
+> `addTriStripLength` from the ledger entirely — not covered, **not compiled**,
+> because its `#ifdef` guard was true against a macro every call site tests
+> with `#if`. `ss-ma1` and `ss-c49`/`ss-qsv` retired nothing; they are in the
+> table because coverage and bucket A moved, not bucket B.
+>
+> Covering an entry and deleting one are different outcomes, and the count
+> alone distinguishes neither them nor a step that changed nothing.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
 > [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs
@@ -410,12 +430,15 @@ asserted in prose (`P8`).
 > **Known limit.** The floor has **never executed**, in two full runs — both
 > queues emptied in iteration 1. Until `ss-aio` landed it was also unreachable
 > in principle, because bucket A was empty in both twins and Stage 2 stopped
-> before Stage 3. That specific blocker is gone: bucket A holds 6 functions and
-> 242 uncovered regions per twin, so a third run *can* reach a second iteration.
+> before Stage 3. That specific blocker is gone, but `ss-c49` has very nearly
+> closed it again from the other side: bucket A now holds 2 functions and 4
+> uncovered regions per twin, and both are entries this project declined to
+> test on purpose. A third run *can* reach Stage 3, and will find almost
+> nothing to queue there.
 >
 > **That is not the same as expecting it to.** The decision table above stops on
 > `queue empty`, and both previous runs emptied a **97-entry** queue in one
-> iteration. Six entries make a one-iteration run more likely, not less,
+> iteration. Two entries make a one-iteration run more likely, not less,
 > and the floor is skipped on iteration 1 in any case. Exercising it still means
 > a synthetic `loop-log.json` fixture. An earlier draft of this document claimed
 > the opposite — that a third run would finally execute the floor — and the
