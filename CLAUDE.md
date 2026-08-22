@@ -53,9 +53,13 @@ git switch -c <type>/<topic>              #    (git switch master in the submodu
 git push -u origin <type>/<topic>         # 3. push the branch, never the default branch
 gh pr create --draft --fill               # 4. open the PR AS A DRAFT
                                           # 5. WAIT for review, address findings
-gh pr ready                               # 6. mark ready -- this is the merge signal
-gh pr merge --squash --delete-branch      # 7. merge only after review is clean
+gh pr ready                               # 6. mark ready -- THE AUTHOR STOPS HERE
 ```
+
+Step 7 is the merge, and it is deliberately not in that block: `gh pr merge
+--squash --delete-branch`, run by whoever owns the repository. An author who
+runs `gh pr ready` and `gh pr merge` back to back has closed the draft window
+to zero and re-created exactly the problem drafts exist to solve.
 
 Step 5 is not optional. Do not merge a PR that review has not reported on.
 
@@ -77,12 +81,19 @@ unaffected either.
 > contradict it. That is `I5` / `ss-e4a`, and the branch protection on the three
 > submodules requires a passing `tests` check and **zero** approving reviews.
 
-**Draft is how step 5 is enforced rather than remembered.** An open PR says
-nothing about whether it has been reviewed, so "still being reviewed" and
-"ready for you" look identical to whoever is watching the PR list. Opening as a
-draft makes the difference visible where the decision is actually made, and
-GitHub refuses to merge a draft — so the rule holds even when the person who
-knows the state forgets to say so.
+**Draft moves step 5 from remembered to visible.** An open PR says nothing about
+whether it has been reviewed, so "still being reviewed" and "ready for you" look
+identical to whoever is watching the PR list. Opening as a draft makes the
+difference visible where the merge decision is actually made.
+
+> **Known limit — half of this is enforced and half is not.** GitHub refuses to
+> merge a draft, so once a PR *is* a draft the rule holds without anyone
+> remembering it. Nothing makes it one:
+> `.claude/hooks/guard-default-branch.py` intercepts `git commit` and
+> `git push`, and its own header puts `gh pr` out of scope. An author who
+> forgets `--draft` produces a PR indistinguishable from a reviewed one, which
+> is the precise failure this section exists to prevent. `ss-2br` proposes a
+> hook; until it exists, the first half is a convention like any other.
 
 The protocol, in one line each:
 

@@ -126,7 +126,7 @@ if [[ -z "$PR" ]]; then
   # open a loop-log path.
   BODY=$(printf 'Automated by the coverage loop.\n\n%s\n' \
                 "$(git log --oneline "origin/$DEFAULT..HEAD" | head -20)")
-  PR_URL=$("${GH[@]}" pr create --base "$DEFAULT" --head "$BRANCH" \
+  PR_URL=$("${GH[@]}" pr create --draft --base "$DEFAULT" --head "$BRANCH" \
            --title "$(git log -1 --pretty=%s)" --body "$BODY")
   PR="${PR_URL##*/}"
 fi
@@ -175,11 +175,27 @@ while :; do
     CLEAN)    [[ "$MERGEABLE" == "MERGEABLE" && "$CHECKSTATE" != "MISSING" ]] && break;;
     BLOCKED)  (( SECONDS > GRACE )) && fail blocked "pr #$PR: BLOCKED — required review or check not satisfied";;
     DIRTY)    fail conflict "pr #$PR: DIRTY — conflicts with $DEFAULT";;
-    DRAFT)    fail draft "pr #$PR is a draft";;
+    DRAFT)    : ;;  # expected: this harness opened it as one. See the note below.
     BEHIND)   "${GH[@]}" pr update-branch "$PR" >&2 || true;;
     UNSTABLE) : ;;  # a non-required check is failing; required one may still pass
     UNKNOWN)  : ;;  # GitHub computes mergeability asynchronously — wait, not no
   esac
+
+> **Amended by the draft-until-reviewed policy** (`CLAUDE.md`). This spec was
+> written before it and contradicted it in two places at once: it opened PRs
+> without `--draft`, which the policy now forbids, and its poll loop treated
+> `DRAFT` as a terminal `fail draft` — so adding the flag to comply made the
+> harness fail on the PR it had just opened. Built faithfully as written, it
+> could not both obey the rule and run.
+>
+> Both lines are corrected above, but the deeper consequence is unresolved and
+> belongs to whoever builds this: **the policy ends the author's involvement at
+> `gh pr ready`, and merging is the repository owner's step.** A harness that
+> polls for mergeability and then merges is automating somebody else's half of
+> the protocol. The likely shape is that `ship.sh` stops at `gh pr ready` and
+> the poll loop below becomes a wait-for-review rather than a wait-for-merge —
+> which is a different program, not a smaller one. `I8` remains unbuilt, and
+> this is now one more reason its spec is not ready to be built from.
   echo "waiting: state=$STATE check=$CHECKSTATE decision=${DECISION:-none}" >&2
   sleep 20
 done

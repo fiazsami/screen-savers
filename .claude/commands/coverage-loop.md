@@ -258,8 +258,17 @@ against a collapsing gain is not.
 ## Exit path
 
 1. Confirm the gate is green and the working trees are clean.
-2. Push each submodule branch and open its PR. **Wait for Claude Code Review**
-   and address findings — the branch policy makes this non-optional.
+2. Push each submodule branch and open its PR **as a draft**
+   (`gh pr create --draft`). Wait for review and address findings — the branch
+   policy makes this non-optional. Review here is an agent running
+   `/code-review` against the diff, not a GitHub app; draft state does not
+   affect it.
+
+   Take them out of draft with `gh pr ready` only once review is clean, and
+   **take both twins out together**. Marking one ready while the other is still
+   a draft invites the drift `ss-na9` describes: one twin's `master` moves, the
+   other's does not, and step 4's pointer bump has nothing coherent to point
+   at. Do not merge them yourself.
 
    Put the evidence **in** the PR body rather than a path to it: the iteration's
    loop-log entry, and any verifier findings accepted rather than fixed.
@@ -289,7 +298,9 @@ against a collapsing gain is not.
    the evidence for what the run decided not to test, so it belongs in the same
    commit as the ratchet advance it justifies — and a ledger left modified is
    what stops the next run's Stage 0. Never `git add -A`.
-4. Push the superproject branch, open its PR, wait for review, merge.
+4. Push the superproject branch and open its PR **as a draft**, wait for
+   review, address findings, then `gh pr ready`. Merging is not the loop's
+   step — the loop stops at ready.
 
    **This step runs even if no submodule PR merged.** The gate rewrites the
    superproject baselines and ledgers on every run, so zero submodule merges
