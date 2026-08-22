@@ -109,6 +109,17 @@ What makes it undiagnosable is that `hook-log.jsonl` stores the *decision* and
 not the command that produced it. `P7` made liveness observable; this is the next
 gap over — a log that proves the hook ran but not what it ran against.
 
+> **Status (2026-08-22): open, and worse.** The second run recorded **4 of 10**
+> commits with no guard record, against this run's 2 of 8 — **6 of 18 across both
+> runs**. Still not reproduced, still undiagnosable, for the reason this finding
+> gives.
+>
+> The second run added the part this one missed: Stage 5's guard check tests for
+> **all-zero**, so a count of 5 against 10 commits *passes it*. Partial silence is
+> invisible to the only mechanism that exists to notice a hook has stopped
+> working — which means liveness, the property `P7` made observable, is the wrong
+> predicate. See [`L5-F6`](2026-08-22-second-coverage-loop-run.md#l5-f6).
+
 ### L4-F4
 **The loop's default threshold was unreachable before the run started, and
 nothing said so.** `addressable = covered ÷ (all regions − C regions)` leaves
@@ -182,6 +193,21 @@ produced one.
 
 `loop-log.json` now exists with exactly one entry, so a second run is also the
 first test of the compare-against-previous path.
+
+> **Status (2026-08-22): still open, and the remedy proposed here is now
+> foreclosed.** The second run happened — hyperspace, `ss-44s`, `I15` **landed**
+> — and its queue emptied in iteration 1 as well, so the floor *still* has never
+> executed. What has changed is that a third run cannot reach it either: bucket A
+> is now at zero uncovered regions in both twins, so Stage 2 stops the loop before
+> it dispatches anything. Exercising the floor needs a fixture, not another run.
+>
+> The last paragraph above is also overtaken. The compare-against-previous path
+> was not tested by the second run, and it turns out to be **defective**: "the
+> previous entry" is positional across a log that is one flat array over all
+> submodules, so it would have compared hyperspace against helios. Ownership moves
+> from `I15` to [`I17`](../improvements.md)/`ss-j5z`. See
+> [`L5-F2`](2026-08-22-second-coverage-loop-run.md#l5-f2) and
+> [`L5-F3`](2026-08-22-second-coverage-loop-run.md#l5-f3).
 
 ### L4-F8
 **The agent specified as read-only wrote three files into the submodule tree.**

@@ -10,21 +10,30 @@ document is the *what*. Principle and invariant references (`P3`, `INV1`, …)
 point there.
 
 > **Status.** Every piece described below exists and is wired, and the loop that
-> composes them **has now run end to end once** — on helios, 2026-08-21, taking
-> it from 20.89% to 63.54% in a single iteration. `queue.json` and
-> `loop-log.json` exist. Read this as a report of machinery that has been used
-> exactly once, by one orchestrator, against one submodule.
+> composes them **has now run end to end twice** — helios on 2026-08-21 and
+> hyperspace on 2026-08-22, each taking its submodule from 20.89% to ≈63.6% in a
+> single iteration. Both stopped on `queue empty` at their structural ceiling,
+> and both covered **100% of bucket A** (455/455 regions). Read this as a report
+> of machinery used twice, by one orchestrator, against two submodules that share
+> a code core.
 >
-> Two stages of it remain unexercised, and both are named below where they are
-> described: the **marginal-gain floor** never evaluated, because the queue
-> emptied in one iteration and the loop stopped on `queue empty`
-> ([`I15`](../improvements.md)); and **Stage 4** was a no-op, because the triager
-> emitted `refactor_first: []` — the 23 bucket-B entries went to `needs_human` as
-> a single summarised row and never entered the queue at all. No refactorer has
-> ever been dispatched by the loop, and the path by which B entries *would* reach
-> one has never been exercised either.
+> **The loop currently has no target it can run on.** Bucket A is at zero
+> uncovered regions in both twins, so Stage 2 stops a third run before it
+> dispatches anything; hills has one testable unit and is blocked on its port.
+> What remains everywhere is bucket B behind `ss-aio`, which is a project
+> decision rather than a queueable refactor.
 >
-> See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) for what the run
+> Two stages have therefore **never executed, and can no longer be reached by
+> running the loop**. Both are named below where they are described: the
+> **marginal-gain floor**, which two runs failed to reach because each queue
+> emptied in one iteration ([`I17`](../improvements.md)); and **Stage 4**, a
+> no-op in both runs because the triager emitted `refactor_first: []` — the 23
+> bucket-B entries went to `needs_human` as a single summarised row and never
+> entered the queue. No refactorer has ever been dispatched. Testing either now
+> means a fixture, not another run.
+>
+> See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
+> [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs
 > found out, most of which was about the harness rather than the coverage.
 
 Four kinds of thing live here:
@@ -124,6 +133,23 @@ And **the kill-check** — before committing, break the function on purpose,
 confirm the new test fails *for that reason*, restore, confirm `git diff` on the
 source comes back empty. This is the line between a test and a coverage
 decoration.
+
+> **Known limit.** The kill-check measures **the suite**, not the file. One
+> binary means a mutation is killed if *any* case anywhere goes red, so
+> `test_X.cpp` passes its own check on fixtures that cannot distinguish the
+> behaviour it claims to pin, as long as some other file's fixtures happen to
+> catch it. That is the right property for the ratchet and it is routinely read
+> as the stronger claim.
+>
+> This is not theoretical. **Twenty undiscriminating paths across the two
+> `/coverage-loop` waves — ten per twin — every one of which passed its author's
+> kill-check**, and were caught only by an independent adversarial pass. The
+> worked example is `test_impshape.cpp`, whose identity and pure-translation
+> fixtures could not tell a transpose from a copy while
+> `test_imp_primitives.cpp` killed the mutation elsewhere. A file whose
+> discrimination lives in another file's fixtures is one refactor from becoming
+> decoration, silently. See `ss-hty`, [`I20`](../improvements.md) and
+> [`L5-F8`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f8).
 
 ### `refactor` — making bucket B testable
 
@@ -252,9 +278,17 @@ The threshold is measured against the **addressable ceiling**, not raw coverage
 > Stage 2 checks whether the ceiling already *meets* the threshold; nothing checks
 > whether it can ever reach it, so the first run was guaranteed from the outset to
 > stop on some other condition. It covered **100% of bucket A** and stopped at its
-> structural ceiling exactly. See
+> structural ceiling exactly.
+>
+> **Reproduced independently on hyperspace**, with different code paths and the
+> same result: `509/980` = 51.9% reported, 54 of that numerator being covered
+> bucket-C regions the denominator excludes, against the same 46.4% ceiling. Both
+> runs covered **455 of 455 reachable regions**. So the honest figure — *100% of
+> bucket A* — is both stronger than what the metric printed and absent from it,
+> while the number it did print sits above its own maximum. See
 > [`L4-F4`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f4),
-> [`L4-F5`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f5) and
+> [`L4-F5`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f5),
+> [`L5-F4`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f4) and
 > [`I14`](../improvements.md).
 
 What normally stops the loop is the **marginal-gain floor** in Stage 5, computed
@@ -263,6 +297,22 @@ justify itself. **3 iterations** is the outer bound, not the stop rule. Both
 exist to prevent a loop that keeps spending on a problem that needed a human;
 the floor is the version of that safeguard conditioned on data rather than
 asserted in prose (`P8`).
+
+> **Known limit.** The floor has **never executed**, in two full runs, and cannot
+> be reached by a third: both queues emptied in iteration 1, and bucket A is now
+> empty in both twins, so Stage 2 stops before Stage 3. Exercising it needs a
+> synthetic `loop-log.json` fixture.
+>
+> It also has a defect in the line that picks its comparand. "The previous entry"
+> is **positional, not per-target**, and the log is one flat array across all
+> submodules — after the second run it reads `[helios/1, hyperspace/1]`, so a
+> hyperspace iteration 2 would have compared its gain against *helios*. The fix
+> is to select the previous entry with the same `target`; where there is none the
+> floor does not apply, which is the iteration-1 behaviour following from data
+> rather than from a counter. See
+> [`L5-F2`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f2),
+> [`L5-F3`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f3) and
+> [`I17`](../improvements.md).
 
 **Stage 0 — preflight.** Clean trees, no detached HEADs, branches created per the
 `CLAUDE.md` policy (`test/coverage-<target>` in the superproject,
@@ -290,6 +340,35 @@ one working tree and one git index per submodule. Disjoint *file assignments*
 don't buy isolation when the build and the index are shared. A writer that leaves
 the tree dirty is a bug in the run, not a result.
 
+> **Known limit.** Stage 3's cleanliness check reads
+> `git -C <submodule> status --short` — the submodule tree alone, with none of
+> the exemptions Stage 0 carries. Two consequences, one observed and one not.
+>
+> **Observed.** A writer in the second run "cleaned" the superproject by running
+> `git checkout` on `coverage/hyperspace.triage.json`, reverting Stage 2's output
+> to its pre-wave version; it had to be regenerated, and the verdict the run had
+> set by hand was lost. The writer was complying: the ledger is live run state
+> that looks exactly like stray dirt from inside a dispatch, and nothing says
+> otherwise. Stage 0 already exempts `coverage/*.triage.json` and
+> `coverage/*.baseline.json`; the exemption was never propagated here
+> (`ss-p51`, [`I18`](../improvements.md),
+> [`L5-F5`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f5)).
+>
+> **Not observed.** A writer that edited `coverage/<name>.json`, a baseline, or
+> the superproject tooling would pass the check, and the standing rule against
+> exactly those edits would go unenforced until the verifier ran a full wave
+> later (`ss-1xw`).
+>
+> Separately, the loop has **no concept of another session sharing its working
+> directory.** Stage 0 treats a dirty tree as work it would destroy and stops —
+> but it looks once, at the start, so anything a concurrent session does mid-run
+> is invisible and looks like a misbehaving subagent. In the second run the
+> orchestrator twice reverted a `.gitignore` edit made by a concurrent human
+> session before the cause surfaced. An unexplained superproject diff mid-run is
+> at least as likely to be a person as a defect, and nothing here says to ask
+> before reverting ([`I19`](../improvements.md),
+> [`L5-F7`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f7)).
+
 **Stage 4 — refactor.** Strictly serial, never concurrent with anything, at most
 **2 entries per iteration** — the expensive, risky half.
 
@@ -315,6 +394,16 @@ unchanged number is not.
 then bump the pointers in the superproject branch alongside any baselines the
 gate rewrote; then the superproject PR. Re-attach every submodule, delete the
 branches, close the `bd` issues and file one per blocked entry.
+
+**Then update the canon, in the same PR as the pointer bump.** The status block
+at the top of this file, any `> **Known limit**` the run closed or sharpened, and
+the row in [`improvements.md`](../improvements.md) for every improvement the run
+landed. A run that merges without this leaves the canon describing a system that
+no longer exists — which has now happened after *both* runs, each time because
+this step came last and the work already felt finished. It is listed here as a
+step of the exit path rather than as good practice for that reason. See
+[`L3-F9`](../lessons/2026-08-21-phase-1-retrospective.md#l3-f9) and
+[`L5-F10`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f10).
 
 This is currently performed **by hand**. The executable version is specified in
 [`ship-harness.md`](ship-harness.md) and is not built.
@@ -372,14 +461,22 @@ rest under `&&`.
 7 fail against the pre-fix version. Run it with
 `python3 .claude/hooks/test_guard_default_branch.py`.
 
-> **Known limit.** Two of the eight submodule commits in the first
-> `/coverage-loop` run produced **no record at all**, and the cause was never
-> established, because the log stores the decision and not the command that
-> produced it ([`I13`](../improvements.md)). The `cd` defect that ran alongside
-> it is fixed — see
-> [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) — but until
-> `I13` closes, a hook count that comes up short cannot be diagnosed, only
-> noticed.
+> **Known limit.** The guard records **nothing at all** for some commits, and it
+> is getting worse rather than better: 2 of 8 submodule commits in the first
+> `/coverage-loop` run, then **4 of 10** in the second — 6 of 18 across both. The
+> cause has never been established, because the log stores the decision and not
+> the command that produced it ([`I13`](../improvements.md)). The `cd` defect that
+> ran alongside it *is* fixed, and confirmed in the field: the records that did
+> fire in the second run name the correct repo and branch (see
+> [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2)).
+>
+> The check meant to catch this cannot. Stage 5 tests the hook counts for
+> **all-zero**, so 5 allows against 10 commits passes while 40% of the wave went
+> unguarded. `P7` made liveness observable; what two runs show is that liveness is
+> the wrong predicate — a hook firing on 60% of commits is alive by every check in
+> the system and is protecting nothing on the rest. Until `I13` closes, partial
+> silence is neither diagnosable nor detectable. See
+> [`L5-F6`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f6).
 >
 > Separately, the guard still reads the branch as it is when the hook fires, so
 > `git switch -c topic && git commit` is refused even though the commit would
