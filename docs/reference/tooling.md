@@ -33,23 +33,22 @@ point there.
 > observer to assert against. hills is unchanged — one testable unit, still
 > blocked on its port.
 >
-> Two stages have **never executed**. Until `ss-aio` they were also unreachable
-> by running the loop; that is no longer true, and the distinction matters
-> because it decides whether testing them needs a fixture or just a run. Both
-> are named below where they are described: the **marginal-gain floor**, which
-> two runs failed to reach because each queue emptied in one iteration
-> ([`I17`](../improvements.md)); and **Stage 4**, a no-op in both runs because
-> the triager emitted `refactor_first: []` — the 23 bucket-B entries went to
-> `needs_human` as a single summarised row and never entered the queue. No
-> refactorer has ever been dispatched.
+> Two stages have **never executed**, and `ss-aio` does not change that for
+> either of them. Both are named below where they are described.
 >
-> **`I17` is now urgent rather than deferred.** Its stated reason for sitting
-> outside the top three was that the floor had no way to bite, the loop being
-> unrunnable. A third run can have a second iteration, so the floor will
-> execute — and it still carries the defect `L5-F3` found, comparing against
-> the previous entry in a log that is one flat array across all submodules.
-> The first thing it does after two runs of never running is compare helios
-> against hyperspace.
+> The **marginal-gain floor** was unreachable in principle while bucket A was
+> empty, and is not any more — but the decision table stops on `queue empty`,
+> and both runs emptied a 97-entry queue in one iteration. Thirteen entries
+> will not take longer. Exercising it still means a fixture
+> ([`I17`](../improvements.md)).
+>
+> **Stage 4** was never blocked by `ss-aio` at all. Bucket B held 23 entries
+> during both runs and Stage 4 was a no-op regardless, because the triager
+> emitted `refactor_first: []` and sent them to `needs_human` as a single
+> summarised row. The 5 entries left are the same shape — `draw()` and the
+> destructor need a real context; the three mutators need an observer — so a
+> third run emits `refactor_first: []` again. No refactorer has ever been
+> dispatched, and nothing here makes one more likely.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
 > [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs
@@ -323,12 +322,17 @@ The threshold is measured against the **addressable ceiling**, not raw coverage
 >    | before | 124 fn / 456 rg | 22 fn / 526 rg | 55.0% of 982 |
 >    | after | 141 fn / 935 rg | 5 fn / 47 rg | 55.0% of 982 |
 >
->    478 regions moved from unreachable to reachable and the number did not
+>    479 regions moved from unreachable to reachable and the number did not
 >    move at all, because the formula is `covered_regions ÷ (total − C)` and
 >    never reads the A/B split. The name is the other half of the problem: a
 >    ceiling is what coverage *could* reach, and this is what it *has* reached.
->    It rose 46.4% → 55.0% across the `ss-aio` work purely because the numerator
->    grew — a ceiling does not rise when you write a test.
+>    It rose **51.8% → 55.0%** across the `ss-aio` work purely because the
+>    numerator grew — a ceiling does not rise when you write a test. (51.8% is
+>    what `triage_classify.py` actually printed for helios, and 51.9% for
+>    hyperspace. The 46.4% quoted above is a different number: the hand-computed
+>    *reachable* ceiling, recorded in `loop-log.json` as `reachable_ceiling` and
+>    never printed by the tool. Conflating the two is easy and this document did
+>    it in an earlier draft.)
 > 2. **The numerator and denominator count different populations.**
 >    `tools/triage_classify.py` divides *total* covered regions, including
 >    bucket C's, by a denominator that excludes bucket C. The first run therefore
@@ -361,22 +365,35 @@ the floor is the version of that safeguard conditioned on data rather than
 asserted in prose (`P8`).
 
 > **Known limit.** The floor has **never executed**, in two full runs — both
-> queues emptied in iteration 1. It was also unreachable by a third run until
-> `ss-aio` landed, because bucket A was empty in both twins and Stage 2 stopped
-> before Stage 3. That is no longer the case: bucket A holds 13 functions and
-> 457 uncovered regions per twin, so a third run can reach a second iteration
-> and the floor will execute for the first time.
+> queues emptied in iteration 1. Until `ss-aio` landed it was also unreachable
+> in principle, because bucket A was empty in both twins and Stage 2 stopped
+> before Stage 3. That specific blocker is gone: bucket A holds 13 functions and
+> 457 uncovered regions per twin, so a third run *can* reach a second iteration.
 >
-> **It will execute wrong.** The defect below has never mattered because the
-> code never ran; the next run is the one where it does.
+> **That is not the same as expecting it to.** The decision table above stops on
+> `queue empty`, and both previous runs emptied a **97-entry** queue in one
+> iteration. Thirteen entries make a one-iteration run more likely, not less,
+> and the floor is skipped on iteration 1 in any case. Exercising it still means
+> a synthetic `loop-log.json` fixture. An earlier draft of this document claimed
+> the opposite — that a third run would finally execute the floor — and the
+> claim did not survive review; see [`I17`](../improvements.md).
 >
 > The defect is in the line that picks its comparand. "The previous entry"
 > is **positional, not per-target**, and the log is one flat array across all
-> submodules — after the second run it reads `[helios/1, hyperspace/1]`, so a
-> hyperspace iteration 2 would have compared its gain against *helios*. The fix
-> is to select the previous entry with the same `target`; where there is none the
-> floor does not apply, which is the iteration-1 behaviour following from data
-> rather than from a counter. See
+> submodules. The fix is to select the previous entry with the same `target`;
+> where there is none the floor does not apply, which is the iteration-1
+> behaviour following from data rather than from a counter.
+>
+> **Narrower in practice than [`L5-F3`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f3)
+> reads, and the difference is worth knowing before anyone budgets for it.**
+> Stage 5 appends the iteration to the log *before* evaluating the decision, and
+> the floor is skipped on iteration 1. So at a target's iteration 2 the previous
+> positional entry is that same target's iteration 1, appended moments earlier
+> by the same run — positional and per-target agree, and the bug is invisible.
+> It needs the previous entry to belong to a *different* target, which means an
+> interleaved `/coverage-loop all`. `L5-F3`'s reasoning stands and the comparand
+> is still wrong in principle; its worked example is the case that does not
+> actually misfire. See
 > [`L5-F2`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f2),
 > [`L5-F3`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f3) and
 > [`I17`](../improvements.md).
