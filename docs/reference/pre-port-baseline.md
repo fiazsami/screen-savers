@@ -15,9 +15,9 @@ harness that measures the code lives in [`tooling.md`](tooling.md).
 > characterization cases prove is about where a vertex *is*; none of it is about
 > whether anything appears on screen.
 >
-> **helios and hyperspace render. hills does not — it is black. The Options…
-> button does nothing in any of the three.** Two pre-existing bugs, `ss-hx9` and
-> `ss-kvi`, neither of them caused by a port that has not happened.
+> **helios and hyperspace render. hills is black. Options… opens for all three,
+> but only sometimes.** Two pre-existing bugs, `ss-hx9` (ours, fixed in hills#6)
+> and `ss-kvi` (the host's), neither caused by a port that has not happened.
 >
 > The record below is in two halves with different standing. The **code-path**
 > half is read out of the source and is as reliable as reading. The
@@ -37,9 +37,14 @@ harness that measures the code lives in [`tooling.md`](tooling.md).
 
 | saver | preview | Options… | notes |
 | --- | --- | --- | --- |
-| helios | **renders** | **does nothing** | works in preview mode |
-| hyperspace | **renders** | **does nothing** | works in preview mode |
-| hills | **black — nothing renders** | **does nothing** | see below |
+| helios | **renders** | opens, **intermittently** | works in preview mode |
+| hyperspace | **renders** | opens, **intermittently** | works in preview mode |
+| hills | **black — nothing renders** | opens, **intermittently** | `ss-hx9`, fixed in hills#6 |
+
+Both columns were first recorded as flat failures. Both turned out to depend on
+which display the System Settings window occupies — the preview because of a bug
+in hills (`ss-hx9`), the Options… button because of something in the host
+(`ss-kvi`). Same axis, unrelated causes.
 
 All three installed to `~/Library/Screen Savers` from a local ad-hoc build and
 were selected from System Settings → Screen Saver. Locally built bundles carry
@@ -47,9 +52,9 @@ no `com.apple.quarantine` attribute, so no Gatekeeper assessment was involved.
 Screenshots are attached to the pull request that added this file.
 
 So the load-and-render claim holds for two of three, and the configure sheet
-holds for none. Both are tracked, and **neither is caused by the port, because
-the port has not happened** — that is the entire value of having captured this
-before opening a Metal branch.
+holds for all three but not reliably. Both are tracked, and **neither is caused
+by the port, because the port has not happened** — that is the entire value of
+having captured this before opening a Metal branch.
 
 ### hills renders nothing — `HillsScreensaverView.m:87`
 
@@ -79,18 +84,39 @@ When the condition is met the view draws nothing **and** `[super startAnimation]
 is never reached, so the animation timer never starts either. That matches the
 observation exactly: a permanently black preview rather than a stalled frame.
 
-The modern host runs the saver out of process in `legacyScreenSaver.appex`, so
-`[self window]` is not the window this check was written against in 2006. Two
-paths reach the same result and it is **not yet established which one fires**:
-`[self window]` being `nil` at `startAnimation` time — `[nil screen]` is `nil`,
-and `nil != [NSScreen mainScreen]` is true — or a real window whose screen is not
-`mainScreen`. Both were single-display cases on a 3440×1440 display, so a
-multi-monitor explanation is ruled out.
+**Established, and it was neither of the two explanations first offered here.**
+Not a `nil` window, and not a genuine second-display case. `-[NSScreen
+mainScreen]` **is not the main display** — it is the screen holding the window
+with keyboard focus. Measured on this machine, which has **two** displays, not
+the one an earlier draft of this document asserted:
 
-The other two savers have no main-display gate, which is why they are unaffected.
-Tracked as `ss-hx9`.
+```
+window.screen   NSScreenNumber=1   frame={{0,0},{3440,1440}}
+mainScreen      NSScreenNumber=2   frame={{0,1440},{3440,1440}}
+CGMainDisplayID=1
+```
 
-### Options… does nothing, in all three
+`NSScreen` instances are not pointer-stable either, so `==` was wrong even when
+the display was right. The result is not that the preference failed but that it
+**inverted**:
+
+| display | shipped code |
+| --- | --- |
+| 1 — **is** the main display | do **not** draw |
+| 2 — not the main display | **draw** |
+
+Hills drew on the secondary display and refused on the primary. That also
+explains the intermittency: move System Settings to the primary display and
+hills renders, because `mainScreen` follows the focus.
+
+The other two savers decide with `frameRect.origin == (0, 0)` and never call
+`mainScreen`, so they are unaffected — checked rather than assumed, since both
+ship the same preference.
+
+Fixed in **hills#6** by comparing `NSScreenNumber` against `CGMainDisplayID()`,
+which asks what the preference means. Tracked as `ss-hx9`.
+
+### Options… is intermittent, in all three
 
 Not a missing resource. Every bundle ships its nib:
 
@@ -105,10 +131,29 @@ and all three implement `-hasConfigureSheet` and `-configureSheet`
 
 The savers are three independent implementations — two authors, different nib
 names, different outlet wiring — failing identically. That points at the host
-rather than at any one of them, and the current suspicion is that System
-Settings does not present legacy configure sheets. **This is a hypothesis, not
-a measurement**: it has not been tested against a saver known to work, which is
-the check that would settle it. Tracked as `ss-kvi`.
+rather than at any one of them.
+
+**Refuted, hours later, and worth reading as a lesson about how.** The suspicion
+recorded here was that System Settings does not present configure sheets for
+legacy modules. It does. **All three sheets open** once the System Settings
+window is on the primary display, and the reporter describes the behaviour as
+intermittent — *"when I move the System Settings app the options/preview may or
+may not display"*.
+
+So the shared-cause argument reached a true conclusion — the host, not our code —
+by a false route. That is the danger of an argument that is only ever checked
+against itself: it was labelled a hypothesis and the settling check was named
+(*try a saver known to work*), and it still stood here as the leading
+explanation until somebody moved a window.
+
+What it actually is: sheet presentation depends on which display System Settings
+occupies, intermittently. **Same axis as the hills bug, different cause.** hills
+was ours and is fixed; this reproduces for helios and hyperspace, and neither has
+any display-conditional logic in its sheet path — both simply `loadNibNamed` and
+return the window. Nothing in these three codebases can make a returned
+`NSWindow` fail to appear.
+
+Tracked as `ss-kvi`, now narrowed to characterising the intermittency.
 
 ## What the code path actually is, which is not what `ss-pl9` assumed
 
@@ -192,8 +237,9 @@ it invites a post-port comparison against a "before" nobody actually established
   request show the preview thumbnails, not a saver running full-screen, and
   nothing has been captured frame by frame. Prose does not survive contact with
   "is this the same as before?"
-- **One observer, one session, one machine.** No second look, no second display,
-  no second GPU. The single display was 3440×1440.
+- **One observer, one session, one machine.** No second look, no second GPU.
+  Two displays, both 3440×1440 — an earlier draft of this document said one,
+  which is how it mis-ruled-out the explanation that turned out to be right.
 - **No duration.** Whether a saver is stable over minutes, survives sleep/wake,
   or leaks is untested. Screen savers run for hours.
 - **No settings other than the defaults**, and `ss-kvi` means there is currently
@@ -202,10 +248,10 @@ it invites a post-port comparison against a "before" nobody actually established
   A/B on whether the shader path is what rendered; it is unreachable until
   `ss-kvi` is resolved. `defaults write` on the module domain is the workaround
   and has not been tried.
-- **Multi-display and Retina scaling untested**, though
-  `wantsBestResolutionOpenGLSurface = YES` is set — and note `ss-hx9` is
-  specifically a multi-display-aware code path misfiring on a single display,
-  so this gap is larger than it looks.
+- **Retina scaling untested**, though `wantsBestResolutionOpenGLSurface = YES`
+  is set. Multi-display is no longer wholly untested — `ss-hx9` and `ss-kvi` are
+  both findings about it — but nothing has watched a saver run full-screen
+  across both displays at once, which is the case the preference exists for.
 
 `ss-pl9`'s own design note is the right calibration for all of this: *manual and
 cheap beats automated and unbuilt*, and an offscreen-render plus image-hash
