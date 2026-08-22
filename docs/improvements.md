@@ -23,12 +23,12 @@ it reads across the register and this table does not.
 
 | id | improvement | from | changes | bd | why it matters |
 | --- | --- | --- | --- | --- | --- |
-| **I6** | Decide `impCubeVolume` — pick one of the three costed options | [L3-F4](lessons/2026-08-21-phase-1-retrospective.md#l3-f4), [L1-F5](lessons/2026-08-21-doctrine-self-review.md#l1-f5) | [`doctrine.md`](reference/doctrine.md) `P6` known limit | `ss-aio` | 31% of the denominator, at 0%, blocked. The worked example of an escalation nobody consumed. **Priced from the final ledger**: 23 functions / 525 regions per twin, so one change to `impSurface`'s constructor unblocks **1050 regions across both**. (An earlier figure of 19/469 counted only the functions the transitive-coupling pass *moved*, not the whole B bucket.) **Now also the binding constraint on the loop**: those 525 regions are 53% of helios' addressable denominator and cap any run there at **46.4%** — and the first run reached that cap exactly, covering 100% of bucket A. |
+| **I17** | Fix the marginal-gain floor's comparand, and exercise it against a fixture | [L5-F2](lessons/2026-08-22-second-coverage-loop-run.md#l5-f2), [L5-F3](lessons/2026-08-22-second-coverage-loop-run.md#l5-f3) | [`tooling.md`](reference/tooling.md) Stage 5 | `ss-j5z` | **Armed by `I6` closing, and now the deadline is the next run rather than the excuse.** The floor has never executed in two runs, and until `ss-aio` landed a third could not reach it either — bucket A was empty in both twins, so Stage 2 stopped before Stage 3. Bucket A now holds **13 functions / 457 uncovered regions per twin**, so a third run reaches a second iteration and the floor executes for the first time. It will execute with its defect intact: "the previous entry" is positional across a log that is one flat array over all submodules, so a hyperspace iteration 2 compares its gain against *helios*. A defect that has never mattered is about to. |
 | **I13** | Record the command in `hook-log.jsonl`, not just the decision | [L4-F3](lessons/2026-08-21-first-coverage-loop-run.md#l4-f3), [L5-F6](lessons/2026-08-22-second-coverage-loop-run.md#l5-f6) | [`tooling.md`](reference/tooling.md) hooks section | `ss-jl7` | The log proves a hook ran but not what it ran against, so a short count can be noticed and never diagnosed. **Measured on the one wave where the records can be counted: 7 allows against 12 commits — 42% unguarded.** The first run's figure is not recomputable at all, because the guard was then naming the superproject for submodule commits — the defect obstructing its own measurement. Stage 5's check is **all-zero**, so 7 of 12 passes cleanly; `P7` made liveness observable and liveness is the wrong predicate. Also surfaced: `loop-log.json` miscounts its own run (10 of 12 commits, 5 allows where the log holds 7). |
 | **I20** | Make the kill-check attribute the kill to a file, not the suite | [L5-F8](lessons/2026-08-22-second-coverage-loop-run.md#l5-f8) | [`tooling.md`](reference/tooling.md) `testing` section | `ss-hty` | The line between a test and a decoration is the project's own phrase for this check, and it measures something weaker than it is read to mean. **Twenty undiscriminating paths across the two waves, every one having passed its author's kill-check.** The cheap fix is reporting, not isolation: the harness already prints which cases failed and the sweep discards it. |
 | **I14** | Fix `addressable` — it mixes units and counts regions no run can reach | [L4-F4](lessons/2026-08-21-first-coverage-loop-run.md#l4-f4), [L4-F5](lessons/2026-08-21-first-coverage-loop-run.md#l4-f5), [L5-F4](lessons/2026-08-22-second-coverage-loop-run.md#l5-f4) | [`tooling.md`](reference/tooling.md) `/coverage-loop` section | `ss-p45` | The loop's own success metric, and both runs' stop decisions were recorded against it. Bucket B stays in the denominator while being unreachable by definition; the numerator counts covered bucket-C regions the denominator excludes; and Stage 5 divides a **line** count by a **region** denominator. **Reproduced independently on hyperspace**: 509/980 = 51.9% printed against a 46.4% ceiling. The figure it should print and doesn't is **100% of bucket A**, which both runs achieved. |
+| **I21** | Give the triage ledger a way to expire a human verdict | this change | [`tooling.md`](reference/tooling.md) triage section | `ss-g2b` | An override outlives the fact it was recorded for, and nothing notices. **20 stale verdicts survived the `ss-aio` fix**, reporting 22 functions of blocked work against a true 5 and hiding 457 uncovered regions of bucket A — while `rule_would_say` recorded the disagreement correctly on every one of them. The ledger's design assumes an override is a permanent judgment about a function; in practice it is a judgment about a *blocker*, and blockers get fixed. |
 | **I8** | Build `tools/ship.sh` from the corrected spec, behind `--dry-run` | [L2](lessons/2026-08-21-ship-harness-review.md), [L3-F3](lessons/2026-08-21-phase-1-retrospective.md#l3-f3) | [`ship-harness.md`](reference/ship-harness.md) status banner | `ss-8s1` | 770 lines of review, 0 of implementation. Verify `-R` resolves to `fiazsami/*` before any real run. |
-| **I17** | Fix the marginal-gain floor's comparand, and exercise it against a fixture | [L5-F2](lessons/2026-08-22-second-coverage-loop-run.md#l5-f2), [L5-F3](lessons/2026-08-22-second-coverage-loop-run.md#l5-f3) | [`tooling.md`](reference/tooling.md) Stage 5 | `ss-j5z` | What `I15` could not reach, now with a reason that will not go away. **The floor has never executed in two runs and a third cannot reach it**: bucket A is empty in both twins, so Stage 2 stops before Stage 3. It also has a defect — "the previous entry" is positional across a log that is one flat array over all submodules, so a hyperspace iteration 2 would have compared against helios. Fixture or nothing. |
 | **I18** | Carry Stage 0's clean-tree exemptions into Stage 3 | [L5-F5](lessons/2026-08-22-second-coverage-loop-run.md#l5-f5) | [`tooling.md`](reference/tooling.md) Stage 3 | `ss-p51` | A writer "cleaned" the superproject by reverting Stage 2's ledger, destroying the run's own evidence for what it declined to test — and it was **complying**, because nothing says the ledger is live run state. Same shape as `I16`: a rule forbidding what an earlier stage of the same run must create. The exemption already exists at Stage 0 and was never propagated. |
 | **I19** | Say what to do when an unexplained superproject diff appears mid-run | [L5-F7](lessons/2026-08-22-second-coverage-loop-run.md#l5-f7) | [`tooling.md`](reference/tooling.md) Stage 0 / Stage 3 | `ss-1xw` | The loop has no concept of another session in its working directory. Stage 0 looks once, at the start, so a concurrent human is indistinguishable from a misbehaving subagent — and the orchestrator reverted a real person's work twice before the cause surfaced. Cannot be fixed by asking agents to report what they touched: the agent that made one of those edits reported in good faith that it had not. |
 | **I10** | Decide whether the shared C++ core stays duplicated | [L3-F5](lessons/2026-08-21-phase-1-retrospective.md#l3-f5) | [`tooling.md`](reference/tooling.md) shared-copy section | `ss-mws` | Prices every future test at 2×. Highest-leverage open decision, filed at P3 as though it were housekeeping. |
@@ -62,6 +62,7 @@ closes.
 | **I9 — the loop run once, end to end** | [L3-F1](lessons/2026-08-21-phase-1-retrospective.md#l3-f1), [L3-F2](lessons/2026-08-21-phase-1-retrospective.md#l3-f2) | [`tooling.md`](reference/tooling.md) status block | `fe0808c`, helios#7 |
 | **I12 — the guard resolves its repository after a `cd`** | [L4-F2](lessons/2026-08-21-first-coverage-loop-run.md#l4-f2) | [`tooling.md`](reference/tooling.md) hooks section | this change |
 | **I15 — the loop run a second time, on hyperspace** | [L4-F6](lessons/2026-08-21-first-coverage-loop-run.md#l4-f6) | [`tooling.md`](reference/tooling.md) status block | `1428aa9`, hyperspace#6 |
+| **I6 — `impCubeVolume` decided, and unblocked** | [L3-F4](lessons/2026-08-21-phase-1-retrospective.md#l3-f4), [L1-F5](lessons/2026-08-21-doctrine-self-review.md#l1-f5) | [`tooling.md`](reference/tooling.md) status block, `P6` known limit | helios#9, hyperspace#7 |
 
 ---
 
@@ -69,13 +70,18 @@ closes.
 
 If only three things are done, do these, in this order:
 
-1. **I6** — decide `impCubeVolume`. The argument is unchanged and both runs have
-   now closed off every alternative. Those 525 regions are 53% of the addressable
-   denominator in *both* twins, and both runs **covered 100% of bucket A**,
-   stopping at the resulting 46.4% ceiling exactly. **There is no coverage work
-   left anywhere in this project that does not go through this decision** —
-   helios and hyperspace have empty A buckets and hills is blocked on its port.
-   It is no longer the highest-leverage item; it is the only one.
+1. **I17** — fix the marginal-gain floor's comparand, **before the next run**.
+   It inherits `I6`'s slot rather than merely moving up one, and the reason is
+   that closing `I6` is what armed it. The floor has never executed in two runs,
+   and the register's stated reason for deferring it was that it had no way to
+   bite — the loop could not run again until bucket B was unblocked. Bucket B
+   *is* unblocked: 13 functions and 457 uncovered regions per twin sit in bucket
+   A, so a third run reaches a second iteration and the floor runs for the first
+   time. It will run with the `L5-F3` defect intact, comparing a hyperspace
+   iteration against helios, because the log is one flat array across all
+   submodules. **A defect that has never mattered is about to.** The register
+   warned against a third deferral to "the next run"; the next run is now the
+   deadline rather than the excuse.
 2. **I13** — record the command, not just the decision. Promoted from "the one to
    watch" because the second run answered the question it was being watched for,
    and then the attempt to state the answer precisely demonstrated it: **7 allows
@@ -93,13 +99,23 @@ If only three things are done, do these, in this order:
    real. The cheap half is a reporting change to data the sweep already produces
    and throws away.
 
-**I17** is deliberately not in the top three, and its absence needs stating
-because it would have been #2 under the old ordering. The floor rule now has
-**two** things wrong with it — never executed, and a defective comparand — but it
-also has no way to bite: the loop cannot run again until `I6` unblocks bucket B.
-Fix it when there is something for it to stop, or fix it against a fixture when
-the loop is next touched for another reason. What must not happen is a third
-deferral to "the next run", which is what the last two produced.
+**`I6` closing is what reordered this list**, and it is worth being explicit
+that it did not close the way the register expected. Every previous entry framed
+it as *a decision* — three costed options, nobody consuming the escalation. What
+it actually needed was for someone to take option 1 and write it: two buffer
+names deferred from a constructor to the first `draw()`, about a dozen lines,
+identical in both twins. The decision had been made twice already, on `ss-aio`
+itself and then reversed by `ss-53w`'s waiver folding it into the ports. It was
+never the deciding that was expensive.
+
+**`I14` moves down rather than up, despite new evidence.** Fixing `I6` cut
+bucket B from 525 regions to 47 and took most of the denominator distortion with
+it, so the metric now misleads far less than it did — but it misleads for
+exactly the same reason, and the next blocked file restores the distortion in
+full. The new evidence is in `tooling.md`: 478 regions moved from unreachable to
+reachable and the printed ceiling did not change by a single decimal, because
+the formula never reads the A/B split. That is a stronger statement of the bug
+than either run produced, and it still does not make it urgent.
 
 **I8** still does not make the list, and the second run strengthened the reason
 rather than weakening it. The exit path has now been walked by hand twice, and

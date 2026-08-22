@@ -123,13 +123,23 @@ Reporting blocked early beats a large speculative diff. A blocked entry with a
 filed issue is the loop working, not the loop failing; grinding another
 iteration against an unchanged number is the failure.
 
-> **Known limit.** "Escalation is success" holds only if escalations are
-> *consumed*. The design files a `bd` issue per blocked entry and models no human
-> capacity to read them, so it has no answer to a backlog of successful
-> escalations nobody acts on. `ss-aio` — the single largest blocked item — has
-> been open and undecided since the day it was filed. See
-> [`I6`](../improvements.md) and
-> [`L1-F5`](../lessons/2026-08-21-doctrine-self-review.md#l1-f5).
+> **Known limit, partly closed.** "Escalation is success" holds only if
+> escalations are *consumed*. The design files a `bd` issue per blocked entry and
+> models no human capacity to read them, so it has no answer to a backlog of
+> successful escalations nobody acts on.
+>
+> The **example** is closed: `ss-aio`, the single largest blocked item, is fixed
+> (helios#9, hyperspace#7), and `I6` with it. The **limit is not**, and the way
+> `ss-aio` closed is the clearest evidence for it yet. It was escalated
+> impeccably — a bug issue, three costed options, a measured price of 525 regions
+> per twin, a named recommendation. Every artifact the principle asks for existed
+> and was correct. It was then waived into the ports by `ss-53w`, blocked the
+> loop completely for two runs, and closed only when a session was pointed
+> straight at it and asked what to do next. Nothing in the system escalated it a
+> second time, and nothing would have.
+>
+> So the mechanism that consumes escalations is still a person deciding to look.
+> See [`L1-F5`](../lessons/2026-08-21-doctrine-self-review.md#l1-f5).
 
 ### P7 — guards fail open, and liveness must be observable
 
