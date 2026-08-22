@@ -20,37 +20,49 @@
     "re-forked; the current remote is at v2.1.1, which predates the port. See",
     "ss-z2c for redoing it.",
     "",
-    "Denominator change, 2026-08-22 (ss-3c8). The line count fell 2393 -> 2388 and",
+    "Denominator change, 2026-08-22 (ss-3c8). The line count fell 2394 -> 2388 and",
     "the baseline rose 83.79% -> 84.00% WITHOUT any test being written. Recorded",
     "here because INV1 makes a shrinking denominator a decision that has to be",
     "argued for, not a number that is allowed to improve quietly.",
+    "",
+    "Note what did NOT change: 'covered' stayed at 2006. Six uncovered lines left",
+    "the denominator and no covered line was added, which is exactly the shape",
+    "removing dead code should have. (An earlier draft of this note said 2393 ->",
+    "2388, taken from the committed baseline's 'covered'/'count' fields. Those are",
+    "write-only and go stale whenever a change moves coverage by <= 0.01 points --",
+    "ss-8hh. Measure with 'coverage.sh --json', not from the baseline file.)",
     "",
     "What changed: impSurface::addTriStripLength was guarded '#ifdef",
     "USE_TRIANGLE_STRIPS' at its declaration and definition while every call site",
     "used '#if'. The macro is #defined as 0, so #ifdef was true and #if was false --",
     "the function compiled into the binary with no caller anywhere, and llvm-cov",
-    "counted its three regions as permanently uncoverable. Both guards are now",
-    "'#if', so it is not compiled at all.",
+    "counted its regions as permanently uncoverable. Both guards are now '#if', so",
+    "it is not compiled at all.",
     "",
     "Why this is the code improving rather than the measurement moving: nothing was",
     "excluded, no source was removed from 'sources', and the function is still",
     "compiled -- and still measured -- if anyone sets USE_TRIANGLE_STRIPS to 1,",
     "which was verified to compile before and after the change. What left the",
     "denominator is dead code, which is the one direction INV1 permits."
+
   ],
+
   "metric": "lines",
   "mode": "ratchet",
   "threshold": null,
   "notify": true,
+
   "sources": [
     "rsMath",
     "Implicit",
     "Rgbhsl",
     "util"
   ],
+
   "tests": [
     "tests"
   ],
+
   "includes": [
     ".",
     "rsMath",
@@ -58,13 +70,11 @@
     "Rgbhsl",
     "util"
   ],
+
   "exclude": [],
-  "cxxflags": [
-    "-std=c++17"
-  ],
+
+  "cxxflags": ["-std=c++17"],
   "cflags": [],
-  "frameworks": [
-    "OpenGL"
-  ],
+  "frameworks": ["OpenGL"],
   "linkflags": []
 }

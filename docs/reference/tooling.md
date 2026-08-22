@@ -64,15 +64,18 @@ point there.
 > **Stage 4** was never blocked by `ss-aio` at all. Bucket B held 23 entries
 > during both runs and Stage 4 was a no-op regardless, because the triager
 > emitted `refactor_first: []` and sent them to `needs_human` as a single
-> summarised row. The 3 entries left are the same shape and more so: `draw()`
-> and the destructor need a real GL context, and `addTriStripLength` is dead
-> code in this build configuration. None is a refactor a subagent should
-> attempt, so a third run emits `refactor_first: []` again. No refactorer has
-> ever been dispatched, and nothing here makes one more likely.
+> summarised row. The **2** entries left are the same shape and more so:
+> `draw()` and the destructor need a real GL context. Neither is a refactor a
+> subagent should attempt, so a third run emits `refactor_first: []` again. No
+> refactorer has ever been dispatched, and nothing here makes one more likely.
 >
-> `ss-or3` is why there are 3 rather than 5. The other two mutators, `addIndex`
-> and `addVertex`, were `B` for want of an observer; that change added const
-> accessors to `impSurface` and they are now fully covered through them.
+> Bucket B went 5 → 3 → 2 across the last three changes, and each step retired
+> an entry a different way. `ss-or3` gave `addIndex` and `addVertex` the
+> observer they were `B` for want of, and they are now covered through it.
+> `ss-3c8` removed `addTriStripLength` from the ledger entirely — not covered,
+> **not compiled**, because its `#ifdef` guard was true against a macro every
+> call site tests with `#if`. Covering an entry and deleting one are different
+> outcomes and the count alone does not distinguish them.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
 > [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs
