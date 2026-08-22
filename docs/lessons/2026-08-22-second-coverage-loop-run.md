@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22
 **Subject:** the second end-to-end execution of the loop, on hyperspace (`ss-44s`), and what two runs together establish that one could not
-**Method:** the run itself is read, not re-executed — its record is `.claude/artifacts/loop-log.json` entry 2, hyperspace#6 (`ac09a83`) and screen-savers#30 (`55dfec1`). Everything numeric below was **recomputed directly from `coverage/*.triage.json`** rather than taken from the loop log or the ledger's own `counts` block, because [`L4-F5`](2026-08-21-first-coverage-loop-run.md#l4-f5) showed that arithmetic to be defective. Bucket sizes, per-bucket covered regions and the twin comparison are therefore measurement. Claims about mutations, verifier findings and guard counts are the run's own and are marked where they are relied on.
+**Method:** the run itself is read, not re-executed — its record is `.claude/artifacts/loop-log.json` entry 2, hyperspace#6 (`ac09a83`) and screen-savers#30 (`55dfec1`). Everything numeric below was **recomputed directly from `coverage/*.triage.json`** rather than taken from the loop log or the ledger's own `counts` block, because [`L4-F5`](2026-08-21-first-coverage-loop-run.md#l4-f5) showed that arithmetic to be defective. Bucket sizes, per-bucket covered regions and the twin comparison are therefore measurement. Claims about mutations and verifier findings are the run's own and are marked where they are relied on. Guard counts were **re-derived from `hook-log.jsonl` and `git log`** after review caught the first draft taking them from `loop-log.json` — the artifact this sentence disclaims — and [F6](#l5-f6) records what that re-derivation changed.
 **Outcome:** the coverage half succeeded completely — **both twins covered 100% of bucket A** — and the half the run existed for failed for the second time. The marginal-gain floor still has never executed, and after this run it can no longer be reached by running the loop at all.
 
 | | finding | kind | action |
@@ -12,7 +12,7 @@
 | [F3](#l5-f3) | the floor selects its comparand positionally, across targets | **defect** | [`I17`](../improvements.md) |
 | [F4](#l5-f4) | `addressable` reports the only one of three numbers that means nothing | **defect** | [`I14`](../improvements.md) |
 | [F5](#l5-f5) | a writer satisfied Stage 3 by destroying Stage 2's output | **defect** | [`I18`](../improvements.md) |
-| [F6](#l5-f6) | the guard's silence got worse, and Stage 5 cannot see partial silence | defect | [`I13`](../improvements.md) |
+| [F6](#l5-f6) | the guard recorded 7 of 12 commits — and `loop-log.json` miscounts the wave | **defect** | [`I13`](../improvements.md) |
 | [F7](#l5-f7) | the loop has no concept of another session in its working directory | defect | [`I19`](../improvements.md) |
 | [F8](#l5-f8) | the kill-check measures the suite, not the file that claims the behaviour | defect | [`I20`](../improvements.md) |
 | [F9](#l5-f9) | "the twins agree to the region" is one region off | minor | — |
@@ -29,9 +29,11 @@
 | cases | 49 | **160** |
 | bucket A uncovered regions | 206 | **0** |
 
-Eleven commits, all under `tests/`, no production source touched — verified at the
-git-object level in the pointer-bump commit (`1428aa9`): the `Implicit/`,
-`rsMath/` and `Rgbhsl/` tree hashes are byte-identical to the branch point.
+**Twelve** commits, all under `tests/`, no production source touched — verified
+two ways: no path outside `tests/` appears in any of the twelve, and the
+`Implicit/`, `rsMath/` and `Rgbhsl/` tree hashes are byte-identical to the branch
+point. (`ss-44s`'s closure and `loop-log.json` both say eleven and ten
+respectively; see [F6](#l5-f6).)
 
 ---
 
@@ -153,28 +155,55 @@ lost. This run set one: `impCubeTables::nextedge` to C.
 Filed as `ss-p51`.
 
 ### L5-F6
-**The guard's silence got worse, and the check meant to detect it structurally
-cannot.** [`L4-F3`](2026-08-21-first-coverage-loop-run.md#l4-f3) recorded 2 of 8
-submodule commits producing no `guard-default-branch` record. This run: **4 of
-10.** Across both runs, **6 of 18 submodule commits went unrecorded** — a third
-of them.
+**The guard went silent on 5 of this run's 12 commits — and the first run's
+figure cannot be recomputed at all.** This finding was originally written from
+`loop-log.json` entry 2, which is exactly the artifact this document's **Method**
+says it refuses to trust. Correcting it turned out to be the more interesting
+result, so the correction is shown rather than quietly applied.
 
-The good half first, and it is real: `ss-1sp` is *confirmed fixed in the field*.
-The five records that did fire read `commit in hyperspace on test/coverage-loop`
-— correct repo and correct branch, where helios' run had logged the superproject
-for the same command shape.
+*Measured*, and this part is solid, because `ss-1sp`'s fix means the records now
+name the right repository:
 
-The bad half is that Stage 5's guard-count check tests for **all-zero**. A count
-of 5 allows against 10 commits passes it. Partial silence is invisible to the one
-mechanism that exists to notice a hook has stopped running, and partial silence
-is what actually happens — twice, at 25% and then 40%.
+| | source | value |
+| --- | --- | --- |
+| commits in the wave | `git log 87ef6ef..803289a` | **12** |
+| `allow \| commit in hyperspace on test/coverage-loop` | `hook-log.jsonl` | **7** |
+| **unrecorded** | | **5 — 42% of the wave** |
 
-`P7` made hook liveness observable. What two runs now show is that liveness is
-the wrong predicate: a hook that fires on 60% of commits is alive by every check
-in the system and is protecting nothing on the other 40%. The cause still cannot
-be established, and the reason it cannot is unchanged — `I13`/`ss-jl7`: the log
-records that a hook ran and what it decided, but not the command it decided
-against.
+`loop-log.json` reports neither number correctly: its `committed` array lists 10
+of the 12 commits, and its `guards.guard-default-branch.allow` says 5 where the
+log holds 7. **The loop's own record of a run is not a reliable account of that
+run** — which is worth more attention than the guard defect it obscured, because
+every claim in `ss-44s`'s closure and both entries of the loop log rests on it.
+
+**The first run's `2 of 8` cannot be independently verified, and the reason is
+the defect itself.** Before `ss-1sp` was fixed the guard named the *superproject*
+for submodule commits, so every record from that wave reads
+`commit in screen-savers on test/coverage-helios` — the same string a genuine
+superproject commit on that branch produces. Submodule and superproject commits
+are indistinguishable in the log, and there are 16 such records in the run's
+window against
+[`L4-F3`](2026-08-21-first-coverage-loop-run.md#l4-f3)'s contemporaneous count of
+6. That count stands as what was observed at the time; it is not re-derivable
+now, and this document does not restate it as measurement.
+
+So there is **no defensible combined figure across the two runs**, and the
+attempt to produce one is what surfaced all of the above. The honest statement is
+narrower and still damning: *in the one wave where the guard was working correctly
+enough to be counted, it recorded 7 of 12 commits.*
+
+The check meant to catch this cannot. Stage 5's guard-count check tests for
+**all-zero**, so 7 allows against 12 commits passes it cleanly. Partial silence
+is invisible to the one mechanism that exists to notice a hook has stopped
+running.
+
+`P7` made hook liveness observable. What this shows is that **liveness is the
+wrong predicate**: a hook firing on 58% of commits is alive by every check in the
+system and is protecting nothing on the rest. The cause still cannot be
+established, and the reason is unchanged — `I13`/`ss-jl7`: the log records that a
+hook ran and what it decided, but not the command it decided against. This
+finding is now also a worked demonstration of that, since it is why half of it
+had to be withdrawn.
 
 ### L5-F7
 **The loop has no concept of another session sharing its working directory, and

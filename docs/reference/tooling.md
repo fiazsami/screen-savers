@@ -354,10 +354,14 @@ the tree dirty is a bug in the run, not a result.
 > (`ss-p51`, [`I18`](../improvements.md),
 > [`L5-F5`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f5)).
 >
-> **Not observed.** A writer that edited `coverage/<name>.json`, a baseline, or
-> the superproject tooling would pass the check, and the standing rule against
-> exactly those edits would go unenforced until the verifier ran a full wave
-> later (`ss-1xw`).
+> **Observed in a milder form.** A writer in the same run **added a `notes/` rule
+> to the superproject's `.gitignore`** — a dispatched agent editing the
+> superproject, unreported and invisible to this check. It was benign, and the
+> rule was good enough that it is now the one in force. The stricter case is the
+> one still unobserved: a writer editing `coverage/<name>.json`, a baseline, or
+> the superproject tooling would pass the check just as easily, and the standing
+> rule against exactly those edits would go unenforced until the verifier ran a
+> full wave later (`ss-1xw`).
 >
 > Separately, the loop has **no concept of another session sharing its working
 > directory.** Stage 0 treats a dirty tree as work it would destroy and stops —
@@ -461,21 +465,31 @@ rest under `&&`.
 7 fail against the pre-fix version. Run it with
 `python3 .claude/hooks/test_guard_default_branch.py`.
 
-> **Known limit.** The guard records **nothing at all** for some commits, and it
-> is getting worse rather than better: 2 of 8 submodule commits in the first
-> `/coverage-loop` run, then **4 of 10** in the second — 6 of 18 across both. The
-> cause has never been established, because the log stores the decision and not
-> the command that produced it ([`I13`](../improvements.md)). The `cd` defect that
-> ran alongside it *is* fixed, and confirmed in the field: the records that did
-> fire in the second run name the correct repo and branch (see
+> **Known limit.** The guard records **nothing at all** for some commits.
+> *Measured* on the second `/coverage-loop` run, the only wave where the records
+> name the right repository and can therefore be counted: **7 allows against 12
+> commits — 5 unrecorded, 42% of the wave.** The cause has never been established,
+> because the log stores the decision and not the command that produced it
+> ([`I13`](../improvements.md)).
+>
+> The first run's figure — `L4-F3`'s contemporaneous 2 of 8 — **cannot be
+> recomputed**, because at the time the guard named the superproject for submodule
+> commits, so those records are indistinguishable from genuine superproject ones.
+> That is the same defect measuring itself, and it is why no combined figure
+> across the two runs is quoted here. The `cd` defect behind it *is* fixed, and
+> confirmed in the field (see
 > [`L4-F2`](../lessons/2026-08-21-first-coverage-loop-run.md#l4-f2)).
 >
 > The check meant to catch this cannot. Stage 5 tests the hook counts for
-> **all-zero**, so 5 allows against 10 commits passes while 40% of the wave went
-> unguarded. `P7` made liveness observable; what two runs show is that liveness is
-> the wrong predicate — a hook firing on 60% of commits is alive by every check in
-> the system and is protecting nothing on the rest. Until `I13` closes, partial
-> silence is neither diagnosable nor detectable. See
+> **all-zero**, so 7 allows against 12 commits passes cleanly. `P7` made liveness
+> observable; what this shows is that liveness is the wrong predicate — a hook
+> firing on 58% of commits is alive by every check in the system and is protecting
+> nothing on the rest. Until `I13` closes, partial silence is neither diagnosable
+> nor detectable.
+>
+> Related, and found the same way: `loop-log.json` is **not a reliable account of
+> its own run.** For the second run it lists 10 of the 12 commits and reports 5
+> guard allows where the hook log holds 7. See
 > [`L5-F6`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f6).
 >
 > Separately, the guard still reads the branch as it is when the hook fires, so

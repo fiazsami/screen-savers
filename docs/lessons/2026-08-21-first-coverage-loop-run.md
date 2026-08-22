@@ -109,16 +109,25 @@ What makes it undiagnosable is that `hook-log.jsonl` stores the *decision* and
 not the command that produced it. `P7` made liveness observable; this is the next
 gap over — a log that proves the hook ran but not what it ran against.
 
-> **Status (2026-08-22): open, and worse.** The second run recorded **4 of 10**
-> commits with no guard record, against this run's 2 of 8 — **6 of 18 across both
-> runs**. Still not reproduced, still undiagnosable, for the reason this finding
-> gives.
+> **Status (2026-08-22): open, worse, and this finding's own count is no longer
+> recoverable.** The second run measured **7 guard allows against 12 commits — 5
+> unrecorded, 42% of the wave.**
+>
+> The `2 of 8` above stands as what was observed at the time and should be read
+> that way, because it **cannot be recomputed**. When this run happened the guard
+> was still naming the superproject for submodule commits
+> ([`L4-F2`](#l4-f2)), so its records are indistinguishable from those of genuine
+> superproject commits on the same branch — 16 such records sit in the run's
+> window. The defect described in this very finding is what prevents its own
+> figure from being verified later, which is the sharpest available argument for
+> [`I13`](../improvements.md). For the same reason no combined
+> across-both-runs figure is quoted anywhere.
 >
 > The second run added the part this one missed: Stage 5's guard check tests for
-> **all-zero**, so a count of 5 against 10 commits *passes it*. Partial silence is
-> invisible to the only mechanism that exists to notice a hook has stopped
-> working — which means liveness, the property `P7` made observable, is the wrong
-> predicate. See [`L5-F6`](2026-08-22-second-coverage-loop-run.md#l5-f6).
+> **all-zero**, so 7 against 12 *passes it*. Partial silence is invisible to the
+> only mechanism that exists to notice a hook has stopped working — which means
+> liveness, the property `P7` made observable, is the wrong predicate. See
+> [`L5-F6`](2026-08-22-second-coverage-loop-run.md#l5-f6).
 
 ### L4-F4
 **The loop's default threshold was unreachable before the run started, and
