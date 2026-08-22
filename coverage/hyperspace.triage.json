@@ -19,8 +19,8 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 123,
-    "needs refactoring first": 23,
+    "testable as-is": 141,
+    "needs refactoring first": 5,
     "not worth testing": 68,
     "unclassified -- needs a human call": 0
   },
@@ -231,7 +231,7 @@
       "name": "impCubeTables::~impCubeTables()",
       "line": 91,
       "regions": 1,
-      "uncovered_regions": 1,
+      "uncovered_regions": 0,
       "verdict": "C",
       "rule": "c:compiler-generated",
       "reason": "empty body -- a test here exercises the compiler, not the code",
@@ -244,17 +244,13 @@
       "name": "impCubeVolume::impCubeVolume()",
       "line": 28,
       "regions": 10,
-      "uncovered_regions": 10,
-      "verdict": "B",
+      "uncovered_regions": 0,
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::~impCubeVolume()",
@@ -262,17 +258,13 @@
       "name": "impCubeVolume::~impCubeVolume()",
       "line": 47,
       "regions": 1,
-      "uncovered_regions": 1,
-      "verdict": "B",
+      "uncovered_regions": 0,
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::init(unsigned int, unsigned int, unsigned int, float)",
@@ -280,17 +272,13 @@
       "name": "impCubeVolume::init(unsigned int, unsigned int, unsigned int, float)",
       "line": 54,
       "regions": 10,
-      "uncovered_regions": 10,
-      "verdict": "B",
+      "uncovered_regions": 0,
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface()",
@@ -299,16 +287,12 @@
       "line": 98,
       "regions": 19,
       "uncovered_regions": 19,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers and segfaults with no GL context. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface(float, float, float)",
@@ -317,16 +301,12 @@
       "line": 129,
       "regions": 26,
       "uncovered_regions": 26,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface(std::vector<impCrawlPoint, std::allocator<impCrawlPoint>>&)",
@@ -335,16 +315,12 @@
       "line": 180,
       "regions": 116,
       "uncovered_regions": 116,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::makeSurface(float, float, float, std::vector<impCrawlPoint, std::allocator<impCrawlPoint>>&)",
@@ -353,16 +329,12 @@
       "line": 349,
       "regions": 119,
       "uncovered_regions": 119,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::calculateCornerMask(unsigned int const&, unsigned int const&, unsigned int const&)",
@@ -371,16 +343,12 @@
       "line": 532,
       "regions": 33,
       "uncovered_regions": 33,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::crawl_nosort(unsigned int, unsigned int, unsigned int)",
@@ -389,16 +357,12 @@
       "line": 545,
       "regions": 30,
       "uncovered_regions": 30,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::crawl_sort(unsigned int, unsigned int, unsigned int)",
@@ -407,16 +371,12 @@
       "line": 583,
       "regions": 28,
       "uncovered_regions": 28,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::polygonize(unsigned int)",
@@ -425,9 +385,9 @@
       "line": 619,
       "regions": 25,
       "uncovered_regions": 25,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "unknown:span",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
       "decided": "2026-08-21",
@@ -443,16 +403,12 @@
       "line": 690,
       "regions": 17,
       "uncovered_regions": 17,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::getXPlus1Value(unsigned int)",
@@ -461,16 +417,12 @@
       "line": 750,
       "regions": 7,
       "uncovered_regions": 7,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::getYPlus1Value(unsigned int)",
@@ -479,16 +431,12 @@
       "line": 774,
       "regions": 7,
       "uncovered_regions": 7,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::getZPlus1Value(unsigned int)",
@@ -497,16 +445,12 @@
       "line": 798,
       "regions": 7,
       "uncovered_regions": 7,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.cpp::impCubeVolume::addVertexToSurface(unsigned int const&, unsigned int const&)",
@@ -515,16 +459,12 @@
       "line": 827,
       "regions": 23,
       "uncovered_regions": 23,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impCubeVolume.h::sortableCube::sortableCube()",
@@ -649,7 +589,7 @@
       "name": "impCubeVolume::setSurfaceValue(float)",
       "line": 111,
       "regions": 1,
-      "uncovered_regions": 1,
+      "uncovered_regions": 0,
       "verdict": "C",
       "rule": "c:trivial-accessor",
       "reason": "branchless setter: 1 plain assignment(s), nothing to get wrong",
@@ -662,7 +602,7 @@
       "name": "impCubeVolume::getSurfaceValue()",
       "line": 112,
       "regions": 1,
-      "uncovered_regions": 1,
+      "uncovered_regions": 0,
       "verdict": "C",
       "rule": "c:trivial-accessor",
       "reason": "branchless getter: 1 plain assignment(s), nothing to get wrong",
@@ -688,7 +628,7 @@
       "name": "impCubeVolume::getSurface()",
       "line": 114,
       "regions": 1,
-      "uncovered_regions": 1,
+      "uncovered_regions": 0,
       "verdict": "C",
       "rule": "c:trivial-accessor",
       "reason": "branchless getter: 1 plain assignment(s), nothing to get wrong",
@@ -701,17 +641,13 @@
       "name": "impCubeVolume::cubeindex(unsigned int const&, unsigned int const&, unsigned int const&)",
       "line": 151,
       "regions": 1,
-      "uncovered_regions": 1,
-      "verdict": "B",
+      "uncovered_regions": 0,
+      "verdict": "A",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impCubeVolume's constructor allocates an impSurface, whose constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context. Every method here is an instance method, so none is reachable until that constructor is de-GL'd. Verified: a program whose body is 'impCubeVolume v;' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "ss-aio is fixed: impSurface no longer calls glGenBuffers from its constructor, so the transitive coupling this entry was overridden for is gone. Verified by running -- a program whose body is 'impCubeVolume v;' now exits 0, and tests/test_impsurface.cpp constructs a volume and re-inits it at 4x4x4 with no GL context. The rules always said a:pure; they are right again. Characterizing what these compute is ss-or3.",
       "set_by": "human",
       "shared_copy": "diverged",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
+      "decided": "2026-08-21"
     },
     {
       "id": "Implicit/impEllipsoid.cpp::impEllipsoid::value(float*)",
@@ -1212,11 +1148,11 @@
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::impSurface()",
       "line": 38,
-      "regions": 3,
-      "uncovered_regions": 3,
-      "verdict": "B",
-      "rule": "b:api-coupled",
-      "reason": "calls glGenBuffers -- needs a context, or the call lifted out behind a seam",
+      "regions": 1,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
       "set_by": "rule",
       "shared_copy": "identical"
     },
@@ -1224,9 +1160,9 @@
       "id": "Implicit/impSurface.cpp::impSurface::~impSurface()",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::~impSurface()",
-      "line": 75,
-      "regions": 3,
-      "uncovered_regions": 3,
+      "line": 78,
+      "regions": 5,
+      "uncovered_regions": 1,
       "verdict": "B",
       "rule": "b:api-coupled",
       "reason": "calls glDeleteBuffers -- needs a context, or the call lifted out behind a seam",
@@ -1237,7 +1173,7 @@
       "id": "Implicit/impSurface.cpp::impSurface::reset()",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::reset()",
-      "line": 123,
+      "line": 129,
       "regions": 1,
       "uncovered_regions": 1,
       "verdict": "C",
@@ -1250,12 +1186,12 @@
       "id": "Implicit/impSurface.cpp::impSurface::addTriStripLength(unsigned char)",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::addTriStripLength(unsigned char)",
-      "line": 134,
+      "line": 140,
       "regions": 3,
       "uncovered_regions": 3,
       "verdict": "B",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impSurface's own constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context, and this is an instance method, so it cannot be reached to be tested. Verified: a program whose body is 'new impSurface' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "Still B, but not for the reason it was overridden. The constructor is de-GL'd (ss-aio), so this method is reachable now -- it just cannot be asserted on. Every byte it writes goes into a private member with no accessor and no observer short of draw(), which needs a real GL context. A test could call it and could not fail. The refactor this bucket is asking for is an observer, not a de-GL'ing. Left out of tests/test_impsurface.cpp deliberately rather than decorated.",
       "set_by": "human",
       "shared_copy": "identical",
       "decided": "2026-08-21",
@@ -1268,12 +1204,12 @@
       "id": "Implicit/impSurface.cpp::impSurface::addIndex(unsigned int)",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::addIndex(unsigned int)",
-      "line": 145,
+      "line": 151,
       "regions": 3,
       "uncovered_regions": 3,
       "verdict": "B",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impSurface's own constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context, and this is an instance method, so it cannot be reached to be tested. Verified: a program whose body is 'new impSurface' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "Still B, but not for the reason it was overridden. The constructor is de-GL'd (ss-aio), so this method is reachable now -- it just cannot be asserted on. Every byte it writes goes into a private member with no accessor and no observer short of draw(), which needs a real GL context. A test could call it and could not fail. The refactor this bucket is asking for is an observer, not a de-GL'ing. Left out of tests/test_impsurface.cpp deliberately rather than decorated.",
       "set_by": "human",
       "shared_copy": "identical",
       "decided": "2026-08-21",
@@ -1286,12 +1222,12 @@
       "id": "Implicit/impSurface.cpp::impSurface::addVertex(float*)",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::addVertex(float*)",
-      "line": 159,
+      "line": 165,
       "regions": 3,
       "uncovered_regions": 3,
       "verdict": "B",
       "rule": "a:pure",
-      "reason": "transitively api-coupled: impSurface's own constructor calls glGenBuffers unconditionally on non-WIN32 and segfaults with no GL context, and this is an instance method, so it cannot be reached to be tested. Verified: a program whose body is 'new impSurface' exits 139. The rules read each function's own text and cannot see coupling through a constructor. See ss-aio.",
+      "reason": "Still B, but not for the reason it was overridden. The constructor is de-GL'd (ss-aio), so this method is reachable now -- it just cannot be asserted on. Every byte it writes goes into a private member with no accessor and no observer short of draw(), which needs a real GL context. A test could call it and could not fail. The refactor this bucket is asking for is an observer, not a de-GL'ing. Left out of tests/test_impsurface.cpp deliberately rather than decorated.",
       "set_by": "human",
       "shared_copy": "identical",
       "decided": "2026-08-21",
@@ -1304,9 +1240,9 @@
       "id": "Implicit/impSurface.cpp::impSurface::draw()",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::draw()",
-      "line": 172,
-      "regions": 31,
-      "uncovered_regions": 31,
+      "line": 178,
+      "regions": 33,
+      "uncovered_regions": 33,
       "verdict": "B",
       "rule": "b:api-coupled",
       "reason": "calls glBindBuffer, glBufferData, glDisableClientState -- needs a context, or the call lifted out behind a seam",

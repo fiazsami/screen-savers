@@ -17,20 +17,38 @@ point there.
 > of machinery used twice, by one orchestrator, against two submodules that share
 > a code core.
 >
-> **The loop currently has no target it can run on.** Bucket A is at zero
-> uncovered regions in both twins, so Stage 2 stops a third run before it
-> dispatches anything; hills has one testable unit and is blocked on its port.
-> What remains everywhere is bucket B behind `ss-aio`, which is a project
-> decision rather than a queueable refactor.
+> **The loop has a target again, for the first time since the second run.**
+> That sentence replaces its opposite, which stood here from 2026-08-22 until
+> `ss-aio` landed: bucket A was at zero uncovered regions in both twins and
+> nothing could be queued anywhere in the project.
 >
-> Two stages have therefore **never executed, and can no longer be reached by
-> running the loop**. Both are named below where they are described: the
-> **marginal-gain floor**, which two runs failed to reach because each queue
-> emptied in one iteration ([`I17`](../improvements.md)); and **Stage 4**, a
-> no-op in both runs because the triager emitted `refactor_first: []` — the 23
-> bucket-B entries went to `needs_human` as a single summarised row and never
-> entered the queue. No refactorer has ever been dispatched. Testing either now
-> means a fixture, not another run.
+> `ss-aio` is fixed. `impSurface` no longer calls `glGenBuffers` from its
+> constructor, so `impCubeVolume` — the marching-cubes pipeline, and the whole
+> of the gate's criterion 1 — is constructible outside a renderer. Per twin,
+> bucket A went from **123 functions / 455 regions, all covered** to **141
+> functions / 935 regions, of which 13 functions and 457 regions are
+> uncovered**. Bucket B fell from 23 functions / 525 regions to **5 / 47**, and
+> what is left of it is `impSurface` alone: `draw()` and the destructor, which
+> genuinely need a context, and three mutators that are reachable but have no
+> observer to assert against. hills is unchanged — one testable unit, still
+> blocked on its port.
+>
+> Two stages have **never executed**, and `ss-aio` does not change that for
+> either of them. Both are named below where they are described.
+>
+> The **marginal-gain floor** was unreachable in principle while bucket A was
+> empty, and is not any more — but the decision table stops on `queue empty`,
+> and both runs emptied a 97-entry queue in one iteration. Thirteen entries
+> will not take longer. Exercising it still means a fixture
+> ([`I17`](../improvements.md)).
+>
+> **Stage 4** was never blocked by `ss-aio` at all. Bucket B held 23 entries
+> during both runs and Stage 4 was a no-op regardless, because the triager
+> emitted `refactor_first: []` and sent them to `needs_human` as a single
+> summarised row. The 5 entries left are the same shape — `draw()` and the
+> destructor need a real context; the three mutators need an observer — so a
+> third run emits `refactor_first: []` again. No refactorer has ever been
+> dispatched, and nothing here makes one more likely.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
 > [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs
@@ -101,6 +119,30 @@ test would not?*
 --reason ...`; a `C` without a reason is refused. Human verdicts survive later
 runs and keep `rule_would_say`, so a disagreement with the rules shows up in the
 diff rather than being absorbed.
+
+> **Known limit — a human verdict can be recorded but never withdrawn.**
+> `build_entries` carries `set_by: "human"` forward on every run unconditionally,
+> and there is no `--clear`. Once a function has been `--set`, the rules can
+> never speak for it again however much the source changes underneath, and the
+> only way to correct one is to `--set` another — which records "a human decided
+> this" when the truth is "the rules decide this and the human no longer has an
+> opinion".
+>
+> Found by hitting it. `ss-aio`'s investigation overrode 20 functions A → B for a
+> GL coupling that the `ss-aio` fix then removed entirely. Bucket B held 23
+> entries: those 20, plus three rule-set ones on `impSurface` itself. A re-run
+> moved **one** — `impSurface::impSurface()`, whose verdict was rule-set, so the
+> rules could see `glGenBuffers` was gone and reclassify it. The rules were
+> right about all three of theirs: `draw()` and the destructor stayed `B`
+> because they still call GL. The 20 human-set entries did not move at all,
+> however thoroughly their stated reason had stopped being true — they stayed
+> `B` with `rule_would_say: A` sitting beside them,
+> so the ledger reported 22 functions of blocked work against a true figure of 5,
+> and reported bucket A as nearly empty while 457 uncovered regions waited in it.
+> `rule_would_say` recorded the disagreement exactly as designed and nothing
+> consumed it — `P6`'s known limit in miniature.
+>
+> See [`I21`](../improvements.md) and `ss-g2b`.
 
 Documented blind spots: llvm-cov only sees functions the compiler emitted and the
 linker kept, so triage **undercounts** (uninstantiated templates, `#ifdef WIN32`
@@ -264,9 +306,33 @@ The threshold is measured against the **addressable ceiling**, not raw coverage
 >
 > 1. **Bucket B inflates the denominator.** `addressable = covered ÷ (all
 >    regions − C regions)` leaves B in, but B is by definition the work that
->    cannot be done until something is refactored. On helios, `ss-aio`'s 525
->    blocked regions are 53% of the 980-region denominator, putting the reachable
->    ceiling at `455 ÷ 980` = **46.4%** — against a default threshold of 80.
+>    cannot be done until something is refactored. While `ss-aio` was open its
+>    525 blocked regions were 53% of helios' 980-region denominator, putting the
+>    reachable ceiling at `455 ÷ 980` = **46.4%** — against a default threshold
+>    of 80. Fixing `ss-aio` cut bucket B to 47 regions and the distortion with
+>    it, but that is the distortion going away on its own, not the metric being
+>    corrected: the next blocked file puts it straight back.
+>
+>    **The sharper demonstration came from fixing it.** Running triage either
+>    side of the `ss-aio` reconciliation, same tree, coverage untouched between
+>    the two runs:
+>
+>    | | bucket A | bucket B | printed ceiling |
+>    | --- | --- | --- | --- |
+>    | before | 124 fn / 456 rg | 22 fn / 526 rg | 55.0% of 982 |
+>    | after | 141 fn / 935 rg | 5 fn / 47 rg | 55.0% of 982 |
+>
+>    479 regions moved from unreachable to reachable and the number did not
+>    move at all, because the formula is `covered_regions ÷ (total − C)` and
+>    never reads the A/B split. The name is the other half of the problem: a
+>    ceiling is what coverage *could* reach, and this is what it *has* reached.
+>    It rose **51.8% → 55.0%** across the `ss-aio` work purely because the
+>    numerator grew — a ceiling does not rise when you write a test. (51.8% is
+>    what `triage_classify.py` actually printed for helios, and 51.9% for
+>    hyperspace. The 46.4% quoted above is a different number: the hand-computed
+>    *reachable* ceiling, recorded in `loop-log.json` as `reachable_ceiling` and
+>    never printed by the tool. Conflating the two is easy and this document did
+>    it in an earlier draft.)
 > 2. **The numerator and denominator count different populations.**
 >    `tools/triage_classify.py` divides *total* covered regions, including
 >    bucket C's, by a denominator that excludes bucket C. The first run therefore
@@ -298,18 +364,36 @@ exist to prevent a loop that keeps spending on a problem that needed a human;
 the floor is the version of that safeguard conditioned on data rather than
 asserted in prose (`P8`).
 
-> **Known limit.** The floor has **never executed**, in two full runs, and cannot
-> be reached by a third: both queues emptied in iteration 1, and bucket A is now
-> empty in both twins, so Stage 2 stops before Stage 3. Exercising it needs a
-> synthetic `loop-log.json` fixture.
+> **Known limit.** The floor has **never executed**, in two full runs — both
+> queues emptied in iteration 1. Until `ss-aio` landed it was also unreachable
+> in principle, because bucket A was empty in both twins and Stage 2 stopped
+> before Stage 3. That specific blocker is gone: bucket A holds 13 functions and
+> 457 uncovered regions per twin, so a third run *can* reach a second iteration.
 >
-> It also has a defect in the line that picks its comparand. "The previous entry"
+> **That is not the same as expecting it to.** The decision table above stops on
+> `queue empty`, and both previous runs emptied a **97-entry** queue in one
+> iteration. Thirteen entries make a one-iteration run more likely, not less,
+> and the floor is skipped on iteration 1 in any case. Exercising it still means
+> a synthetic `loop-log.json` fixture. An earlier draft of this document claimed
+> the opposite — that a third run would finally execute the floor — and the
+> claim did not survive review; see [`I17`](../improvements.md).
+>
+> The defect is in the line that picks its comparand. "The previous entry"
 > is **positional, not per-target**, and the log is one flat array across all
-> submodules — after the second run it reads `[helios/1, hyperspace/1]`, so a
-> hyperspace iteration 2 would have compared its gain against *helios*. The fix
-> is to select the previous entry with the same `target`; where there is none the
-> floor does not apply, which is the iteration-1 behaviour following from data
-> rather than from a counter. See
+> submodules. The fix is to select the previous entry with the same `target`;
+> where there is none the floor does not apply, which is the iteration-1
+> behaviour following from data rather than from a counter.
+>
+> **Narrower in practice than [`L5-F3`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f3)
+> reads, and the difference is worth knowing before anyone budgets for it.**
+> Stage 5 appends the iteration to the log *before* evaluating the decision, and
+> the floor is skipped on iteration 1. So at a target's iteration 2 the previous
+> positional entry is that same target's iteration 1, appended moments earlier
+> by the same run — positional and per-target agree, and the bug is invisible.
+> It needs the previous entry to belong to a *different* target, which means an
+> interleaved `/coverage-loop all`. `L5-F3`'s reasoning stands and the comparand
+> is still wrong in principle; its worked example is the case that does not
+> actually misfire. See
 > [`L5-F2`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f2),
 > [`L5-F3`](../lessons/2026-08-22-second-coverage-loop-run.md#l5-f3) and
 > [`I17`](../improvements.md).
