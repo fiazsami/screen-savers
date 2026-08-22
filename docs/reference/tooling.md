@@ -25,13 +25,15 @@ point there.
 > `ss-aio` is fixed. `impSurface` no longer calls `glGenBuffers` from its
 > constructor, so `impCubeVolume` — the marching-cubes pipeline, and the whole
 > of the gate's criterion 1 — is constructible outside a renderer. `ss-or3`
-> then characterized it. Per twin, across the two changes:
+> then characterized it, and `ss-ma1` fixed the first two bugs that
+> characterization found. Per twin, across the three changes:
 >
 > | | bucket A | bucket B | coverage |
 > | --- | --- | --- | --- |
 > | before `ss-aio` | 123 fn / 455 rg, **0 uncovered** | 23 fn / 525 rg | 63.6% |
 > | after `ss-aio` | 141 fn / 935 rg, 457 uncovered | 5 fn / 47 rg | 66.7% |
-> | after `ss-or3` | 145 fn / 943 rg, 242 uncovered | **3 fn / 41 rg** | **83.7%** |
+> | after `ss-or3` | 145 fn / 943 rg, 242 uncovered | **3 fn / 41 rg** | 83.7% |
+> | after `ss-ma1` | 146 fn / 950 rg, 242 uncovered | 3 fn / 41 rg | **83.8%** |
 >
 > What is left in bucket B is `impSurface` alone, and none of it is a refactor
 > anyone should do before the port: `draw()` and the destructor genuinely need
@@ -193,6 +195,29 @@ And **the kill-check** — before committing, break the function on purpose,
 confirm the new test fails *for that reason*, restore, confirm `git diff` on the
 source comes back empty. This is the line between a test and a coverage
 decoration.
+
+Two rules about reading its result, both learned by getting them wrong:
+
+**Verify the mutant differs from the original.** A substitution that matches
+nothing leaves the source unchanged, the suite green, and a result
+indistinguishable from a mutant the suite failed to kill — and the natural
+reading of that green run is "coverage gap", which is the opposite of the
+truth. It happened during `ss-or3`: a corner-mask mutant was written against
+`value >= surfacevalue` where the code reads `value < surfacevalue`, matched
+zero sites, and was nearly recorded as a blind spot. Whatever applies the
+mutation must fail loudly when the file is unchanged.
+
+**A survivor is a question, not a verdict.** Some mutants survive because the
+change is genuinely unobservable, and the answer then is to say so *at the
+code* rather than to invent a test or delete the line. Three from this work,
+all documented where they live: the corner mask's `<` → `<=`, which moves 24
+vertices and 48 triangles and leaves the triangulated area identical to six
+decimal places because those triangles are zero-area slivers; `init()`'s
+`*_vertex_index` zeroes, which duplicate the value-initialisation
+`std::vector::resize` already performs; and `impCubeVolume`'s `frame = 0`,
+which the wrap handler added beside it now subsumes. Deleting code because no
+test pins it is the wrong lesson from an equivalent mutant; leaving it
+unexplained is how the next triage pass rediscovers it as a gap.
 
 > **Known limit.** The kill-check measures **the suite**, not the file. One
 > binary means a mutation is killed if *any* case anywhere goes red, so
