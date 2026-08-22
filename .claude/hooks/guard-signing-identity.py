@@ -87,12 +87,32 @@ HOOK = "guard-signing-identity"
 # pattern that matches everything and a set that names what is allowed cannot
 # fail that way, and the two checks read alike.
 #
-# The bracketed identity form -- CODE_SIGN_IDENTITY[sdk=macosx*] -- is how Xcode
-# writes a per-SDK override, and it is the same setting.
-TEAM = re.compile(r'^\+\s*DEVELOPMENT_TEAM\s*=\s*(.+?)\s*;')
-IDENTITY = re.compile(r'^\+\s*CODE_SIGN_IDENTITY(?:\[[^\]]*\])?\s*=\s*(.+?)\s*;')
+# TWO SPELLINGS, and missing the second was not hypothetical. DEVELOPMENT_TEAM is
+# the build setting; DevelopmentTeam is what Xcode writes under TargetAttributes,
+# and hyperspace shipped one there through the very commit that was meant to
+# remove the team. Every other check passed and the tree still carried
+# 8D98N325TG. Review caught it; this pattern is why it cannot recur.
+#
+# KEYS MAY BE QUOTED. Xcode writes the per-SDK override as
+# "CODE_SIGN_IDENTITY[sdk=macosx*]" = ... -- the quote wraps the whole key,
+# brackets included -- so anchoring on a bare key name misses it. An earlier
+# version did, and its test passed vacuously by using the unquoted spelling.
+TEAM = re.compile(
+    r'^\+\s*"?(?:DEVELOPMENT_TEAM|DevelopmentTeam)(?:\[[^\]]*\])?"?\s*=\s*(.+?)\s*;'
+)
+IDENTITY = re.compile(
+    r'^\+\s*"?CODE_SIGN_IDENTITY(?:\[[^\]]*\])?"?\s*=\s*(.+?)\s*;'
+)
 
 ALLOWED_TEAM = {'""'}
+
+# `""` is allowed for the team and NOT for the identity. The asymmetry is a rule,
+# not an oversight, and review read it as a bug -- so it is stated here and in
+# the refusal message. An empty team is the absence of a team, which is the
+# desired state. An empty IDENTITY is what produces the unsealed linker-signed
+# bundle this whole policy exists to avoid: measured, flags=0x20002
+# (adhoc,linker-signed) with no sealed resources, against 0x10002(adhoc,runtime)
+# with them.
 ALLOWED_IDENTITY = {'"-"', "-"}
 
 
@@ -123,18 +143,46 @@ def apply_cd(directory, args):
     return candidate if os.path.isdir(candidate) else directory
 
 
-def parse(command, cwd):
-    """Yield (directory, repo_argument, subcommand, remaining_args) per git call.
+def segments(command):
+    """Split a shell command into pieces on &&, ||, ; and |, respecting quotes.
 
-    Splitting on the usual separators is enough: the point is to catch an
-    ordinary mistake, not to defeat someone who is trying.
+    guard-default-branch.py splits the RAW string on those separators and lexes
+    each piece afterwards. That is wrong in a way that silently disables the
+    check: a separator inside a quoted commit message cuts the message in half,
+    both halves fail to lex, and the whole command yields nothing. Measured --
+    with a team ID staged, `git commit -m x` was refused and
+    `git commit -m "chore: bump; regenerate project"` sailed through. A message
+    containing a semicolon is not exotic, and neither is one containing a pipe.
+
+    Lexing first fixes it, because the lexer knows the quotes are quotes.
+    punctuation_chars makes shlex emit runs of shell operators as their own
+    tokens, so `x;` does not arrive glued together the way whitespace_split
+    alone would leave it.
+
+    Raises ValueError on input it cannot lex -- an unbalanced quote -- which the
+    caller treats as "allow", consistent with failing open everywhere else.
     """
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    piece = []
+    for token in lexer:
+        if token and all(character in "&|;" for character in token):
+            yield piece
+            piece = []
+        else:
+            piece.append(token)
+    yield piece
+
+
+def parse(command, cwd):
+    """Yield (directory, repo_argument, subcommand, remaining_args) per git call."""
     directory = cwd
-    for piece in re.split(r"&&|\|\||;|\|", command):
-        try:
-            words = shlex.split(piece)
-        except ValueError:
-            continue
+    try:
+        pieces = list(segments(command))
+    except ValueError:
+        return
+
+    for words in pieces:
         if not words:
             continue
 
@@ -158,14 +206,46 @@ def parse(command, cwd):
             yield directory, repo, words[index], words[index + 1:]
 
 
-def stages_everything(args):
-    """Whether this `git commit` will stage tracked modifications as it runs."""
-    for arg in args:
+# `git commit` options that consume the argument after them. Needed only to tell
+# a pathspec from a flag's value, so an omission costs a false positive rather
+# than a miss -- `-m fix` would read `fix` as a pathspec and check the worktree
+# too, which refuses nothing extra unless the worktree is genuinely dirty.
+VALUE_FLAGS = {
+    "-m", "--message", "-c", "--reedit-message", "-C", "--reuse-message",
+    "-F", "--file", "--author", "--date", "-t", "--template", "--cleanup",
+    "--fixup", "--squash", "--trailer", "-S", "--gpg-sign", "-u",
+    "--untracked-files",
+}
+
+
+def commits_the_worktree(args):
+    """Whether this `git commit` will commit content that is not in the index.
+
+    Two ways that happens, and the second was missed until review found it:
+
+      -a / --all       stages every tracked modification as it runs
+      a pathspec       `git commit path...` commits the WORKTREE content of
+                       those paths, bypassing the index entirely
+
+    Both matter for the same reason: the case this hook exists for is Xcode
+    rewriting a tracked file underneath the author, so the offending content is
+    typically modified and never deliberately staged. Measured -- with an
+    unstaged team ID, `git commit Hyperspace.xcodeproj/project.pbxproj -m x`
+    was allowed through before this.
+    """
+    for index, arg in enumerate(args):
         if arg in ("-a", "--all"):
             return True
         # Bundled short flags: -am "msg", -av, and so on.
         if re.fullmatch(r"-[A-Za-z]+", arg) and "a" in arg[1:]:
             return True
+        if arg == "--":  # everything after is a pathspec by definition
+            return index + 1 < len(args)
+        if arg.startswith("-"):
+            continue
+        if index > 0 and args[index - 1] in VALUE_FLAGS:
+            continue  # this is that flag's value, not a pathspec
+        return True
     return False
 
 
@@ -219,7 +299,7 @@ def main():
         name = os.path.basename(os.path.abspath(repo))
 
         diffs = [git(repo, "diff", "--cached", "-U0", "--", "*.pbxproj")]
-        if stages_everything(rest):
+        if commits_the_worktree(rest):
             diffs.append(git(repo, "diff", "-U0", "--", "*.pbxproj"))
 
         found = []
@@ -238,12 +318,18 @@ def main():
             f"{name}.\n{listed}\n\n"
             f"These projects sign ad-hoc: CODE_SIGN_IDENTITY = \"-\" with an empty "
             f"DEVELOPMENT_TEAM (ss-2im).\nA committed identity breaks the build "
-            f"for everyone without that team's certificate, CI included.\n\n"
+            f"for everyone without that team's certificate, CI included.\n"
+            f"An empty CODE_SIGN_IDENTITY is refused too, and is not the same as "
+            f"an empty team:\nit yields an unsealed linker-signed bundle. Only "
+            f"\"-\" seals one.\n\n"
             f"Xcode writes DEVELOPMENT_TEAM back on its own when a signed-in "
             f"account opens the project,\nso this is most likely a change you did "
             f"not make. Check and revert it:\n"
             f"  git -C {hint} diff --cached -- '*.pbxproj'\n"
-            f"  git -C {hint} checkout -- '*.pbxproj'\n\n"
+            f"  git -C {hint} restore --staged --worktree -- '*.pbxproj'\n\n"
+            f"(restore, not `checkout --`: checkout copies the INDEX over the "
+            f"worktree, so it would\nleave the offending line staged and write it "
+            f"back into the file.)\n\n"
             f"Release signing belongs on the xcodebuild command line, not in the "
             f"file -- see ss-i71."
         )

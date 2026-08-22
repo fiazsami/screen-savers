@@ -275,10 +275,24 @@ of the savers would build at all. Run both.
 ### Code signing
 
 **These projects sign ad-hoc, and that is the intended state, not a stopgap.**
-Every configuration sets `CODE_SIGN_IDENTITY = "-"` with an empty
-`DEVELOPMENT_TEAM`. A locally built saver carries no quarantine attribute, so it
-installs into `~/Library/Screen Savers` and runs with no Gatekeeper involvement
-and no certificate.
+Every build configuration sets `CODE_SIGN_IDENTITY = "-"` and
+`CODE_SIGN_STYLE = Manual`, with an empty `DEVELOPMENT_TEAM`. A locally built
+saver carries no quarantine attribute, so it installs into
+`~/Library/Screen Savers` and runs with no Gatekeeper involvement and no
+certificate.
+
+`Manual` rather than `Automatic` is deliberate and was a review finding: an
+identity of `"-"` needs no team and no profile, so both styles build and seal
+identically — but `Automatic` is precisely the mode in which Xcode resolves a
+team and writes it into the file. Choosing it would have meant adopting the
+setting that causes the problem the rest of this section prevents.
+
+**A team ID has two spellings, and only one of them is a build setting.**
+`DEVELOPMENT_TEAM` lives in `buildSettings`; `DevelopmentTeam` is what Xcode
+writes under `TargetAttributes` at project level. hyperspace carried one there
+through the very commit that was meant to remove its team — every check passed
+and the tree still held `8D98N325TG`, because everything looked for the first
+spelling. Search for both.
 
 Two things follow, and the second is the one that gets forgotten:
 
@@ -289,12 +303,24 @@ Two things follow, and the second is the one that gets forgotten:
 - **Release signing is a command-line override**, supplied at ship time and never
   stored: `xcodebuild ... CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM=<team>`.
 
-Enforced, not just stated: `.claude/hooks/guard-signing-identity.py` refuses a
-commit whose pbxproj changes *add* a non-empty `DEVELOPMENT_TEAM` or an identity
-other than `"-"`. It exists because the thing that reintroduces one is Xcode
-rather than a person — opening a project in the GUI while signed in to a
-Developer account rewrites the file unprompted, which is exactly how
-`8D98N325TG` got there.
+Note that an *empty* `CODE_SIGN_IDENTITY` is not the same as an empty team and is
+not acceptable: it yields an unsealed, linker-signed bundle
+(`flags=0x20002`) where `"-"` yields a sealed one (`0x10002` plus
+`Sealed Resources`). Only the second is tamper-evident, and both print
+`** BUILD SUCCEEDED **`.
+
+Enforced in two places, which catch different things:
+
+| | sees | catches |
+| --- | --- | --- |
+| `.claude/hooks/guard-signing-identity.py` | commits made through this harness | a team or identity being added to a pbxproj, in either spelling, staged or not |
+| each submodule's `tests` workflow | whatever arrives on a branch | a non-empty team in the committed file, and a bundle that builds but does not verify |
+
+The hook exists because the thing that reintroduces an identity is Xcode rather
+than a person — opening a project in the GUI while signed in to a Developer
+account rewrites the file unprompted, which is exactly how `8D98N325TG` got
+there. The CI check exists because the hook cannot see a commit made any other
+way, and because *building* proves nothing about *signing*.
 
 > **Known limit.** The guard sees `git` invocations, so it cannot stop Xcode
 > writing the file — only committing it. That is the right place to catch it,

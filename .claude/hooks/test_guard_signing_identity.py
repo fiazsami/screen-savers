@@ -121,6 +121,52 @@ class GuardSigningIdentity(unittest.TestCase):
             'CODE_SIGN_IDENTITY[sdk=macosx*] = "Developer ID Application";'))
         self.assertEqual(run("git commit -m x", self.child)[0], REFUSE)
 
+    def test_quoted_sdk_conditional_identity_is_refused(self):
+        """Xcode quotes the WHOLE key, brackets included.
+
+        The previous test passed vacuously against a pattern that anchored on a
+        bare key name -- the leading quote defeated it and nothing noticed,
+        because the unquoted spelling this file used does not occur in practice.
+        """
+        self.dirty(CLEAN.replace(
+            'CODE_SIGN_IDENTITY = "-";',
+            '"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";'))
+        self.assertEqual(run("git commit -m x", self.child)[0], REFUSE)
+
+    def test_target_attributes_spelling_is_refused(self):
+        """DevelopmentTeam under TargetAttributes is the same setting, camel-cased.
+
+        hyperspace shipped one of these through the very commit meant to remove
+        its team: every other check passed and the tree still carried
+        8D98N325TG, because the guard and the greps all looked for
+        DEVELOPMENT_TEAM only.
+        """
+        self.dirty(CLEAN.replace(
+            "/* Begin XCBuildConfiguration section */",
+            "\t\t\tattributes = {\n"
+            "\t\t\t\tTargetAttributes = {\n"
+            "\t\t\t\t\t8D255AC50486D3F9007BF209 = {\n"
+            "\t\t\t\t\t\tDevelopmentTeam = 8D98N325TG;\n"
+            "\t\t\t\t\t};\n"
+            "\t\t\t\t};\n"
+            "\t\t\t};\n"
+            "/* Begin XCBuildConfiguration section */"))
+        code, err = run("git commit -m x", self.child)
+        self.assertEqual(code, REFUSE)
+        self.assertIn("8D98N325TG", err)
+
+    def test_empty_identity_is_refused(self):
+        """`""` is permitted for the team and NOT for the identity, by design.
+
+        An empty team is the absence of a team, which is the wanted state. An
+        empty identity produces the unsealed linker-signed bundle the whole
+        policy exists to avoid. The asymmetry is a rule; this pins it so a later
+        reader does not "fix" it into a hole.
+        """
+        self.dirty(CLEAN.replace('CODE_SIGN_IDENTITY = "-";',
+                                 'CODE_SIGN_IDENTITY = "";'))
+        self.assertEqual(run("git commit -m x", self.child)[0], REFUSE)
+
     # --- what must keep working -------------------------------------------
 
     def test_empty_team_is_allowed(self):
@@ -204,10 +250,72 @@ class GuardSigningIdentity(unittest.TestCase):
         self.assertEqual(code, REFUSE)
 
     def test_plain_commit_ignores_unstaged_modifications(self):
-        """Without -a they will not be committed, so they are not this hook's business."""
+        """Without -a or a pathspec they will not be committed, so they are not ours."""
         write(self.pbxproj, CLEAN.replace('DEVELOPMENT_TEAM = "";',
                                           "DEVELOPMENT_TEAM = 8D98N325TG;"))
         self.assertEqual(run("git commit -m x", self.child)[0], ALLOW)
+
+    def test_pathspec_commit_sees_unstaged_modifications(self):
+        """`git commit <path>` commits WORKTREE content, bypassing the index.
+
+        Same class of miss the -a handling was written to close, and it was open
+        until review found it: the offending line is modified and never staged,
+        which is exactly the shape of the Xcode rewrite this hook exists for.
+        """
+        write(self.pbxproj, CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                          "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run("git commit Thing.xcodeproj/project.pbxproj -m x", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_pathspec_after_double_dash_sees_unstaged_modifications(self):
+        write(self.pbxproj, CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                          "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run("git commit -m x -- Thing.xcodeproj", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_message_value_is_not_mistaken_for_a_pathspec(self):
+        """`-m fix` must not make the hook read `fix` as a path and go worktree-hunting.
+
+        Harmless when the worktree is clean, so this asserts the allow rather
+        than the mechanism -- the point is that an ordinary commit is not
+        refused for having a bare word after -m.
+        """
+        write(os.path.join(self.child, "README"), "unrelated\n")
+        git(self.child, "add", "-A")
+        self.assertEqual(run("git commit -m fix", self.child)[0], ALLOW)
+
+    # --- separators inside a quoted message ------------------------------
+    #
+    # These are the whole reason parse() lexes before it splits. Splitting the
+    # raw string cuts a quoted message in half at its punctuation, both halves
+    # fail to lex, and the command yields no git calls at all -- so the guard
+    # silently allows everything. guard-default-branch.py still has this shape;
+    # filed rather than fixed here.
+
+    def test_semicolon_in_the_commit_message_does_not_disable_the_guard(self):
+        self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                 "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run('git commit -m "chore: bump; regenerate project"', self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_pipe_in_the_commit_message_does_not_disable_the_guard(self):
+        self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                 "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run('git commit -m "before | after"', self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_ampersands_in_the_commit_message_do_not_disable_the_guard(self):
+        self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                 "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run('git commit -m "signing && notarization"', self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_a_real_separator_still_splits(self):
+        """Lexing first must not cost the cd tracking that separators enable."""
+        self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
+                                 "DEVELOPMENT_TEAM = 8D98N325TG;"))
+        code, _ = run('cd helios ; git commit -m "x"', self.parent)
+        self.assertEqual(code, REFUSE)
 
 
 if __name__ == "__main__":
