@@ -286,9 +286,9 @@ test-writing.
 
 ### L5-F11
 
-Recorded deliberately, because every finding above is a specification defect and
-a reader could take that for a project in trouble rather than one whose mechanisms
-are finally running hard enough to show their edges.
+Recorded deliberately, because a list of eight defects reads like a project in
+trouble rather than one whose mechanisms are finally running hard enough to show
+their edges.
 
 **The wave did not inherit its twin's mistakes, and proved it.** helios' ten
 undiscriminating paths were known when this run started. The writers used helios'
