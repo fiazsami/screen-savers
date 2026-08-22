@@ -17,3 +17,8 @@ tools/__pycache__/
 # log. Machine state for a run in progress, regenerated every time -- committing
 # it would conflict on every branch and tell a later reader nothing.
 .claude/artifacts/
+
+# Scratch notes -- outside reads, drafts, working thinking. Deliberately not
+# tracked: docs/ is the knowledge base, and anything worth keeping graduates
+# into it as a lesson or a reference document.
+notes/
