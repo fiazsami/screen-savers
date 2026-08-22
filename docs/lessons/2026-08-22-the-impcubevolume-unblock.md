@@ -1,14 +1,14 @@
-# L6 — The `impCubeVolume` unblock, and four reviews of it
+# L6 — The `impCubeVolume` unblock, and five reviews of it
 
 **Date:** 2026-08-22
-**Subject:** four waves of hand-driven work — `ss-aio`, `ss-or3`, `ss-ma1` and their superproject bumps — that took the marching-cubes pipeline from unconstructible to characterized, and the four independent review passes that ran over them
+**Subject:** four waves of hand-driven work — `ss-aio`, `ss-or3`, `ss-ma1` and their superproject bumps — that took the marching-cubes pipeline from unconstructible to characterized, and the five independent review passes that ran over them
 **Method:** the coverage and bucket figures are **recomputed from the committed artifacts at each merge point** (`git show <sha>:coverage/helios.triage.json`), not taken from any PR description or commit message written at the time — several of which this document records as wrong. Kill-check results and the two reproductions (the poisoned-storage surface, the wrapping frame) were **run**, and the commands are in the PRs. The finding counts and their attribution are a **count of the review agents' own output**, which is judgment only in how each finding is categorised. Claims about what a reviewer "would have" caught are marked as judgment where they appear.
-**Outcome:** the gate's criterion 1 stopped being waived. Bucket B fell from 525 regions per twin to 41, coverage from 63.59% to 83.79%, and five pre-existing production defects surfaced — none of which anyone was looking for. The reviews returned **23 findings and all 23 were correct**, which is the finding this document is really about.
+**Outcome:** the gate's criterion 1 stopped being waived. Bucket B fell from 525 regions per twin to 41, coverage from 63.59% to 83.79%, and five pre-existing production defects surfaced — none of which anyone was looking for. The reviews returned **25 findings and all 25 were correct**, which is the finding this document is really about.
 
 | | finding | kind | action |
 | --- | --- | --- | --- |
 | [F1](#l6-f1) | a faultless escalation sat unconsumed until a session was pointed at it | **process** | `P6` known limit updated |
-| [F2](#l6-f2) | 23 review findings, all correct; 17 in work its author had just called done | **process** | [`I3`](../improvements.md) |
+| [F2](#l6-f2) | 25 review findings, all correct; 19 in work its author had just called done | **process** | [`I3`](../improvements.md) |
 | [F3](#l6-f3) | four numeric claims wrong, in the PR whose subject was correcting numbers | **defect** | [`I22`](../improvements.md) |
 | [F4](#l6-f4) | the fix was half a fix, and the test written for it hid the other half | **defect** | `ss-ma1`, closed |
 | [F5](#l6-f5) | the triage ledger can record a human verdict but never withdraw one | defect | [`I21`](../improvements.md) |
@@ -73,7 +73,7 @@ resolved, the limit is not.
 
 ### L6-F2
 
-**Four independent reviews returned 23 findings. All 23 were correct. Seventeen
+**Five independent reviews returned 25 findings. All 25 were correct. Nineteen
 were defects in work the author had just declared finished.**
 
 The passes and their yields, counted from the agents' own output:
@@ -84,10 +84,17 @@ The passes and their yields, counted from the agents' own output:
 | 2 | superproject `#33` | 8 |
 | 3 | the `ss-or3` submodule PRs | 7 |
 | 4 | the `ss-ma1` submodule PRs | 5 |
+| 5 | superproject `#35` | 2 |
+
+A fifth pass landed while this document was being written and is folded in: 25
+findings, still no false positive. Both of its findings are recorded below — the
+stale ledger description in [F9](#l6-f9), and a case that would have become a
+decoration the moment someone took an option its own comment offers, in
+[F10](#l6-f10).
 
 Categorised — this part is judgment, the counts are not:
 
-- **17** were defects in work produced during these four waves, i.e. in changes
+- **19** were defects in work produced during these four waves, i.e. in changes
   their author had run the gate against, kill-checked, and written a PR
   description for.
 - **5** were pre-existing production defects the new work surfaced but did not
@@ -97,7 +104,7 @@ Categorised — this part is judgment, the counts are not:
 - **1** was advisory rather than a defect — a warning not to bump a submodule
   pointer to a commit that was not yet on `master`.
 
-**Not one was wrong.** No false positive, across four passes and 23 findings.
+**Not one was wrong.** No false positive, across five passes and 25 findings.
 That is worth stating precisely because the register has been carrying the
 opposite worry: [`I3`](../improvements.md) exists because the verifier's
 effectiveness is *assumed*, and [`L5-F8`](2026-08-22-second-coverage-loop-run.md#l5-f8)
@@ -109,7 +116,7 @@ was never wrong about what it caught".
 The asymmetry is the point. The author of this work ran every gate available —
 the suite, the coverage ratchet, a kill-check against seven mutants — and
 declared each wave done. Every one of those signals was green when the reviews
-found 17 defects in it. **The gates measure whether the code runs; they do not
+found 19 defects in it. **The gates measure whether the code runs; they do not
 measure whether the author's claims about it are true.** `P3` — nothing grades
 its own work — is usually read as a rule about test authorship. This says it
 applies just as hard to prose.
@@ -176,6 +183,17 @@ structurally blind to a second defect in the same three lines. "The test passes"
 and "the mechanism is understood" are different claims, and the first was
 mistaken for the second.
 
+**And the case written for the wrap was one refactor from becoming a
+decoration.** It counted to a literal `65535`, tied to nothing — while
+`advanceFrame()`'s own comment offers widening the five counters as the
+alternative fix. Take that option and the loop never reaches a wrap. *Measured*,
+with all six counters widened, which is the refactor someone would actually
+make: the original case reports **187 cases, 0 failed** while exercising
+nothing. It now derives the period from `sizeof(frame)` and **fails** rather
+than skipping when a widened period is too large to drive — a silent skip being
+the same decoration in a different costume. Caught by the fifth review pass, in
+a test written to close a finding from the third.
+
 ### L6-F5
 
 **A human verdict can be recorded in the triage ledger but never withdrawn, and
@@ -204,6 +222,16 @@ addressable work than at any point in its history.
 
 `rule_would_say` recorded the disagreement on all 20, exactly as designed, and
 nothing consumed it. That is [F1](#l6-f1) in miniature, one layer down.
+
+**The same ledger held a stale *description* just as quietly.** `ss-ma1`'s title
+and body asserted the model this work disproved — "yields a surface of garbage
+indices", and that `init()` does not zero the index fields — while the
+correction lived only in a `notes` field appended underneath. A fifth review
+pass caught it. The ledger entry is the canonical artifact for that bug, so a
+later port or triage pass reading it would have re-derived exactly the model
+three other documents had already retracted. **A correction that lives beside
+the claim it corrects, rather than replacing it, corrects nothing.** Title and
+description rewritten.
 
 ### L6-F6
 
