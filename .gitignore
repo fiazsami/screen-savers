@@ -16,7 +16,7 @@ tools/__pycache__/
 # Working state written by /coverage-loop: the dispatch queue and the iteration
 # log. Machine state for a run in progress, regenerated every time -- committing
 # it would conflict on every branch and tell a later reader nothing.
-.claude/artifacts/
+**/.claude/artifacts/
 
 # Scratch notes -- outside reads, drafts, working thinking. Deliberately not
 # tracked: docs/ is the knowledge base, and anything worth keeping graduates
