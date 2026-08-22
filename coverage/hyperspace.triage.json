@@ -1,6 +1,6 @@
 {
   "project": "hyperspace",
-  "updated": "2026-08-21",
+  "updated": "2026-08-22",
   "_policy": [
     "Advisory, not scope. Nothing reads this file to change what the coverage gate",
     "counts -- editing 'sources' or 'exclude' in the coverage config is a decision",
@@ -19,7 +19,7 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 146,
+    "testable as-is": 147,
     "needs refactoring first": 3,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
@@ -649,10 +649,23 @@
       "shared_copy": "diverged"
     },
     {
+      "id": "Implicit/impCubeVolume.h::impCubeVolume::framePeriod()",
+      "file": "Implicit/impCubeVolume.h",
+      "name": "impCubeVolume::framePeriod()",
+      "line": 152,
+      "regions": 1,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule",
+      "shared_copy": "diverged"
+    },
+    {
       "id": "Implicit/impCubeVolume.h::impCubeVolume::cubeindex(unsigned int const&, unsigned int const&, unsigned int const&)",
       "file": "Implicit/impCubeVolume.h",
       "name": "impCubeVolume::cubeindex(unsigned int const&, unsigned int const&, unsigned int const&)",
-      "line": 153,
+      "line": 170,
       "regions": 1,
       "uncovered_regions": 0,
       "verdict": "A",
