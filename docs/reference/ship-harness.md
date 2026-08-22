@@ -126,7 +126,7 @@ if [[ -z "$PR" ]]; then
   # open a loop-log path.
   BODY=$(printf 'Automated by the coverage loop.\n\n%s\n' \
                 "$(git log --oneline "origin/$DEFAULT..HEAD" | head -20)")
-  PR_URL=$("${GH[@]}" pr create --base "$DEFAULT" --head "$BRANCH" \
+  PR_URL=$("${GH[@]}" pr create --draft --base "$DEFAULT" --head "$BRANCH" \
            --title "$(git log -1 --pretty=%s)" --body "$BODY")
   PR="${PR_URL##*/}"
 fi
@@ -175,11 +175,12 @@ while :; do
     CLEAN)    [[ "$MERGEABLE" == "MERGEABLE" && "$CHECKSTATE" != "MISSING" ]] && break;;
     BLOCKED)  (( SECONDS > GRACE )) && fail blocked "pr #$PR: BLOCKED — required review or check not satisfied";;
     DIRTY)    fail conflict "pr #$PR: DIRTY — conflicts with $DEFAULT";;
-    DRAFT)    fail draft "pr #$PR is a draft";;
+    DRAFT)    fail draft-awaiting-ready "pr #$PR is still a draft — nothing here runs 'gh pr ready'";;
     BEHIND)   "${GH[@]}" pr update-branch "$PR" >&2 || true;;
     UNSTABLE) : ;;  # a non-required check is failing; required one may still pass
     UNKNOWN)  : ;;  # GitHub computes mergeability asynchronously — wait, not no
   esac
+
   echo "waiting: state=$STATE check=$CHECKSTATE decision=${DECISION:-none}" >&2
   sleep 20
 done
@@ -197,6 +198,32 @@ trap - ERR
 printf '{"status":"merged","pr":%s,"merge_sha":"%s","branch":"%s","base":"%s","resumed":false}\n' \
        "$PR" "$SHA" "$BRANCH" "$DEFAULT"
 ```
+
+> **Amended by the draft-until-reviewed policy** (`CLAUDE.md`), and **still not
+> buildable** — the amendment narrows the gap rather than closing it.
+>
+> As written this spec contradicted the policy twice over: it opened PRs without
+> `--draft`, which the policy forbids, and its poll loop treated `DRAFT` as a
+> terminal failure — so adding the flag to comply made the harness fail on the
+> PR it had just opened.
+>
+> `--draft` is added above and the `DRAFT` arm now fails as
+> `draft-awaiting-ready`. That is **not a fix**; it is an honest failure. The
+> poll loop's only success exit is `STATE == CLEAN`, a draft never reaches it,
+> and nothing in this script runs `gh pr ready`. So the harness as specified
+> opens a PR and then reports, in about twenty seconds and with the true cause
+> named, that it cannot proceed. An earlier revision of this note made that arm
+> a no-op instead, which turned the same dead end into a silent nine-minute
+> timeout — worse in every respect, and caught in review.
+>
+> The unresolved part belongs to whoever builds this. **The policy ends the
+> author's involvement at `gh pr ready` and makes merging the repository
+> owner's step.** A harness that polls for mergeability and then merges is
+> automating somebody else's half of the protocol. The likely shape is that
+> `ship.sh` stops at `gh pr ready` and this loop becomes a wait-for-review
+> rather than a wait-for-merge — a different program, not a smaller one. `I8`
+> remains unbuilt, and this is one more reason its spec is not ready to be
+> built from.
 
 ### Why it is shaped this way
 
@@ -274,9 +301,17 @@ entered from a stop condition with verifier ≠ `fail`.
      ./tools/ship.sh <submodule> --method merge
    Append each JSON result to .claude/artifacts/ship-log.json.
    EMPTY STDOUT MEANS STOP — it is the one outcome the contract cannot describe.
-   status=conflict|review-failed|review-missing|blocked → file a bd issue with
-   the PR URL and continue shipping the others. Never retry a failed review by
-   dispatching another writer at it (P3).
+   status=conflict|review-failed|review-missing|blocked|draft-awaiting-ready →
+   file a bd issue with the PR URL and continue shipping the others. Never
+   retry a failed review by dispatching another writer at it (P3).
+
+   `draft-awaiting-ready` is listed for completeness and is currently the
+   status EVERY run returns, since step 2 above passes `--draft` and nothing in
+   the script runs `gh pr ready`. Without it here the first submodule falls
+   through to "Anything else → leave every branch in place and report the
+   ship-log verbatim", the orchestrator halts, and the remaining submodules are
+   never attempted. That is a contract gap on top of a script that does not yet
+   work — see the note under §2's poll loop.
 3. If zero submodules merged, the superproject still has a ratchet advance and
    rewritten ledgers on its branch. Ship it alone, or discard the measurement
    and say which — do not leave a dirty tree and an uncommitted advance.

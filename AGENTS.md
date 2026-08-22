@@ -16,12 +16,32 @@ git switch main && git pull --rebase      # branch from an up-to-date default br
 git switch -c <type>/<topic>              # (git switch master in the submodules)
 # ... change, run quality gates ...
 git push -u origin <type>/<topic>         # push the branch, never the default branch
-gh pr create --fill
-                                          # WAIT for Claude Code Review, address findings
-gh pr merge --squash --delete-branch      # merge only after review is clean
+gh pr create --draft --fill               # open it AS A DRAFT
+                                          # WAIT for review, address findings
+gh pr ready                               # the merge signal -- the author stops here
 ```
 
-Waiting for Claude Code Review is not optional. Do not merge a PR it has not reported on.
+Waiting for review is not optional. Do not merge a PR review has not reported on.
+
+**Open every PR as a draft.** An open PR says nothing about whether it has been
+reviewed, so "still being reviewed" and "ready for you" look identical to
+whoever is watching the PR list. Draft makes the difference visible where the
+merge decision is made, and GitHub refuses to merge a draft. The author's last
+step is `gh pr ready`.
+
+Merging is a separate **decision**, not necessarily a separate person — this is
+a solo repository and a rule requiring somebody else would make every session
+incompletable. What is forbidden is running `gh pr ready` and `gh pr merge` in
+one motion, which closes the draft window to zero. Between them the PR must
+have sat in a state where review had reported and a human could have looked.
+
+Review is **not** a GitHub app — no review has ever been posted by anything in
+any of these four repositories, and no review workflow exists. It is an agent
+running `/code-review` against the diff and posting findings as a comment,
+which is why draft state cannot deadlock it: there is no trigger to skip.
+
+For a change spanning both twins, both PRs leave draft together or neither
+does.
 
 A change inside a submodule is **two** PRs, in order: one in the submodule's own repo merged to its `master`, then one here bumping the submodule pointer to that merged commit. Never pin the superproject to a commit that isn't on the submodule's default branch. Never commit inside a submodule in detached HEAD — `git switch master` first.
 
@@ -124,4 +144,4 @@ bd close <id>         # Complete work
 
 ### What "complete" means here
 
-The generated block above is beads boilerplate and stops at `git push`, describing a commit-to-default-branch flow this project does not use. A session is complete when the work is on a `<type>/<topic>` branch, a PR is open, Claude Code Review has reported and its findings are addressed, and the PR is merged with its branch deleted. "Work is NOT complete until `git push` succeeds" still holds — it means pushing the **feature branch**, never `main`.
+The generated block above is beads boilerplate and stops at `git push`, describing a commit-to-default-branch flow this project does not use. A session is complete when the work is on a `<type>/<topic>` branch, a PR is open **as a draft**, review has reported and its findings are addressed, the PR has been taken out of draft with `gh pr ready`, and it is merged with its branch deleted. "Work is NOT complete until `git push` succeeds" still holds — it means pushing the **feature branch**, never `main`.

@@ -257,9 +257,41 @@ against a collapsing gain is not.
 
 ## Exit path
 
+**This path has TWO handoffs, and neither is optional.** The loop never merges
+its own pull requests, so it pauses twice:
+
+| | the loop does | then it stops until |
+| --- | --- | --- |
+| first | steps 1–2: submodule PRs opened as drafts, reviewed, marked ready | the owner merges them |
+| second | steps 3–4: pointers bumped, superproject PR opened as a draft, reviewed, marked ready | the owner merges it |
+| then | steps 5–7: re-attach the submodules, close out | — |
+
+Steps 5–7 sit after the **second** handoff, not the first: step 5 re-attaches
+the submodules and says explicitly that this waits until the superproject PR
+has merged, because until then the default branch is not yet where the pointer
+says it is. Running them straight after step 4 deletes branches while the bump
+is still an unmerged draft.
+
+A run that reaches either pause is *paused*, not finished. Say which one it is
+when handing off, and say what merging unblocks.
+
 1. Confirm the gate is green and the working trees are clean.
-2. Push each submodule branch and open its PR. **Wait for Claude Code Review**
-   and address findings — the branch policy makes this non-optional.
+2. Push each submodule branch and open its PR **as a draft**
+   (`gh pr create --draft -R fiazsami/<submodule>` — the `-R` matters, these
+   are fork clones and `gh` otherwise resolves to the upstream). Wait for review and address findings — the branch
+   policy makes this non-optional. Review here is an agent running
+   `/code-review` against the diff, not a GitHub app; draft state does not
+   affect it.
+
+   Take them out of draft with `gh pr ready -R fiazsami/<submodule>` only once
+   review is clean, and
+   **take both twins out together**. Marking one ready while the other is still
+   a draft invites the drift `ss-na9` describes: one twin's `master` moves, the
+   other's does not, and step 4's pointer bump has nothing coherent to point
+   at. **Do not merge them yourself** — hand off here, and say plainly which
+   PRs are ready and what merging them unblocks. (A run may target one
+   submodule, two or three; "both twins" applies only when the run touched the
+   shared core that `helios` and `hyperspace` carry. `hills` has no twin.)
 
    Put the evidence **in** the PR body rather than a path to it: the iteration's
    loop-log entry, and any verifier findings accepted rather than fixed.
@@ -289,7 +321,9 @@ against a collapsing gain is not.
    the evidence for what the run decided not to test, so it belongs in the same
    commit as the ratchet advance it justifies — and a ledger left modified is
    what stops the next run's Stage 0. Never `git add -A`.
-4. Push the superproject branch, open its PR, wait for review, merge.
+4. Push the superproject branch and open its PR **as a draft**, wait for
+   review, address findings, then `gh pr ready`. Merging is not the loop's
+   step — hand off again here, exactly as at step 2.
 
    **This step runs even if no submodule PR merged.** The gate rewrites the
    superproject baselines and ledgers on every run, so zero submodule merges

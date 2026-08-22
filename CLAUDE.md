@@ -51,12 +51,80 @@ git switch -c <type>/<topic>              #    (git switch master in the submodu
 # ... make the change; run the quality gates ...
 
 git push -u origin <type>/<topic>         # 3. push the branch, never the default branch
-gh pr create --fill                       # 4. open the PR
-                                          # 5. WAIT for Claude Code Review, address findings
-gh pr merge --squash --delete-branch      # 6. merge only after review is clean
+gh pr create --draft --fill               # 4. open the PR AS A DRAFT
+                                          # 5. WAIT for review, address findings
+gh pr ready                               # 6. mark ready -- THE AUTHOR STOPS HERE
 ```
 
-Step 5 is not optional. Do not merge a PR that Claude Code Review has not reported on.
+Step 7 is the merge — `gh pr merge --squash --delete-branch` — and it is
+deliberately outside that block.
+
+**It is a separate decision, not necessarily a separate person.** This is a
+solo repository: the author usually *is* the owner, and a rule requiring
+somebody else would make every session incompletable. What the separation
+forbids is running `gh pr ready` and `gh pr merge` in one motion, which closes
+the draft window to zero and re-creates exactly the problem drafts exist to
+solve. Between them the PR must have sat in a state where review had reported
+and a human could have looked. Where an agent did the work, that human is the
+one who merges.
+
+Step 5 is not optional. Do not merge a PR that review has not reported on.
+
+**What provides step 5, precisely.** Not a GitHub app. Checked across all four
+repositories and every pull request in them: **zero** reviews have ever been
+posted by anything, and no review workflow exists in any of the four. What
+satisfies step 5 is an agent running `/code-review` against the diff and posting
+its findings as a PR comment.
+
+That matters here for one reason: a locally-run pass reads the diff, so it is
+**indifferent to draft state**. A review app with a `pull_request` trigger might
+skip drafts by default and would deadlock the rule below; this cannot, because
+there is no trigger to skip. The submodule `tests` workflow uses bare
+`on: pull_request`, whose default activity types do fire for drafts, so CI is
+unaffected either.
+
+> **Known limit.** "Review has reported" is therefore a claim the author makes
+> about work the author commissioned, with nothing server-side able to
+> contradict it. That is `I5` / `ss-e4a`, and the branch protection on the three
+> submodules requires a passing `tests` check and **zero** approving reviews.
+
+**Draft moves step 5 from remembered to visible.** An open PR says nothing about
+whether it has been reviewed, so "still being reviewed" and "ready for you" look
+identical to whoever is watching the PR list. Opening as a draft makes the
+difference visible where the merge decision is actually made.
+
+> **Known limit — half of this is enforced and half is not.** GitHub refuses to
+> merge a draft, so once a PR *is* a draft the rule holds without anyone
+> remembering it. Nothing makes it one: `.claude/hooks/guard-default-branch.py`
+> yields only invocations whose `argv[0]` is `git`, so no `gh` command reaches
+> it at all. (Its header does discuss `gh pr merge` — rejected as unblockable
+> in `ss-nla` — but `gh pr create` is never named there; the gap is the
+> parser's, not a stated exclusion.) An author who forgets `--draft` produces a
+> PR indistinguishable from a reviewed one, which is the precise failure this
+> section exists to prevent. `ss-2br` proposes a hook, and also argues it may
+> not be worth building; until then the first half is a convention like any
+> other.
+
+The protocol, in one line each:
+
+| | |
+| --- | --- |
+| **Author** | opens every PR with `--draft`, and does not ask anyone to merge it |
+| **Review** | runs against the draft; findings are addressed on the same branch |
+| **Author** | runs `gh pr ready` once review is clean, says so, and stops |
+| **Reviewer/owner** | merges nothing marked Draft. Not-draft is the author's signal that review is clean — it is a **necessary** condition for merging, not on its own an instruction to merge |
+
+For a change spanning both twins, **both** PRs come out of draft together or
+neither does. Marking one ready invites exactly the drift `ss-na9` describes:
+one twin's `master` moves, the other's does not, and the superproject cannot be
+bumped coherently until they agree.
+
+This was written after the reverse happened twice in one session: the author
+said "merge both" while a review was still running, the PRs were merged exactly
+as asked, and the findings then landed against `master` and needed a follow-up
+PR pair each time. The author's sequencing was the defect both times, which is
+precisely why the fix is a mechanism rather than a resolution to be more
+careful.
 
 ### Submodules
 
@@ -123,8 +191,9 @@ bd close <id>         # Complete work
 The generated block above is beads boilerplate and stops at `git push`. In this project that is not the finish line — it describes a commit-to-default-branch flow this project does not use. A session is complete when:
 
 - the work is on a `<type>/<topic>` branch, pushed to `origin`;
-- a PR is open for it;
-- Claude Code Review has reported and its findings are addressed;
+- a PR is open for it, **opened as a draft**;
+- review has reported and its findings are addressed;
+- the PR has been taken out of draft with `gh pr ready`;
 - the PR is merged and its branch deleted.
 
 "Work is NOT complete until `git push` succeeds" still holds — it just means pushing the **feature branch**. Never satisfy it by pushing to `main`.
