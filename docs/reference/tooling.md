@@ -69,13 +69,17 @@ point there.
 > subagent should attempt, so a third run emits `refactor_first: []` again. No
 > refactorer has ever been dispatched, and nothing here makes one more likely.
 >
-> Bucket B went 5 → 3 → 2 across the last three changes, and each step retired
-> an entry a different way. `ss-or3` gave `addIndex` and `addVertex` the
-> observer they were `B` for want of, and they are now covered through it.
-> `ss-3c8` removed `addTriStripLength` from the ledger entirely — not covered,
-> **not compiled**, because its `#ifdef` guard was true against a macro every
-> call site tests with `#if`. Covering an entry and deleting one are different
-> outcomes and the count alone does not distinguish them.
+> Bucket B went **5 → 3 → 3 → 2** across the four rows above, and the two steps
+> that moved it did so in different ways. `ss-or3` took it 5 → 3 by giving
+> `addIndex` and `addVertex` the observer they were `B` for want of; both are
+> now covered through it. `ss-3c8` took it 3 → 2 by removing
+> `addTriStripLength` from the ledger entirely — not covered, **not compiled**,
+> because its `#ifdef` guard was true against a macro every call site tests
+> with `#if`. `ss-ma1` retired nothing; it is in the table because coverage and
+> bucket A moved, not bucket B.
+>
+> Covering an entry and deleting one are different outcomes, and the count
+> alone distinguishes neither them nor a step that changed nothing.
 >
 > See [`L4`](../lessons/2026-08-21-first-coverage-loop-run.md) and
 > [`L5`](../lessons/2026-08-22-second-coverage-loop-run.md) for what the runs

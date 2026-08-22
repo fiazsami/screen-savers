@@ -44,7 +44,6 @@
     "compiled -- and still measured -- if anyone sets USE_TRIANGLE_STRIPS to 1,",
     "which was verified to compile before and after the change. What left the",
     "denominator is dead code, which is the one direction INV1 permits."
-
   ],
 
   "metric": "lines",
