@@ -51,12 +51,41 @@ git switch -c <type>/<topic>              #    (git switch master in the submodu
 # ... make the change; run the quality gates ...
 
 git push -u origin <type>/<topic>         # 3. push the branch, never the default branch
-gh pr create --fill                       # 4. open the PR
-                                          # 5. WAIT for Claude Code Review, address findings
-gh pr merge --squash --delete-branch      # 6. merge only after review is clean
+gh pr create --draft --fill               # 4. open the PR AS A DRAFT
+                                          # 5. WAIT for review, address findings
+gh pr ready                               # 6. mark ready -- this is the merge signal
+gh pr merge --squash --delete-branch      # 7. merge only after review is clean
 ```
 
-Step 5 is not optional. Do not merge a PR that Claude Code Review has not reported on.
+Step 5 is not optional. Do not merge a PR that review has not reported on.
+
+**Draft is how step 5 is enforced rather than remembered.** An open PR says
+nothing about whether it has been reviewed, so "still being reviewed" and
+"ready for you" look identical to whoever is watching the PR list. Opening as a
+draft makes the difference visible where the decision is actually made, and
+GitHub refuses to merge a draft — so the rule holds even when the person who
+knows the state forgets to say so.
+
+The protocol, in one line each:
+
+| | |
+| --- | --- |
+| **Author** | opens every PR with `--draft`, and does not ask anyone to merge it |
+| **Review** | runs against the draft; findings are addressed on the same branch |
+| **Author** | runs `gh pr ready` once review is clean, and says so |
+| **Reviewer/owner** | merges anything not marked Draft; merges nothing that is |
+
+For a change spanning both twins, **both** PRs come out of draft together or
+neither does. Marking one ready invites exactly the drift `ss-na9` describes:
+one twin's `master` moves, the other's does not, and the superproject cannot be
+bumped coherently until they agree.
+
+This was written after the reverse happened twice in one session: the author
+said "merge both" while a review was still running, the PRs were merged exactly
+as asked, and the findings then landed against `master` and needed a follow-up
+PR pair each time. The author's sequencing was the defect both times, which is
+precisely why the fix is a mechanism rather than a resolution to be more
+careful.
 
 ### Submodules
 
