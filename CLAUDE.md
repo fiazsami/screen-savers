@@ -253,13 +253,62 @@ to move only because the code got better.
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+tools/coverage.sh                       # the ratchet gate, all three submodules
+tools/coverage.sh --quiet helios        # one of them, summary line only
+tools/triage.sh                         # classify what is still uncovered
+
+# The savers themselves. No signing arguments -- see below.
+xcodebuild -project helios/Helios.xcodeproj         -target Helios      -configuration Release build
+xcodebuild -project hyperspace/Hyperspace.xcodeproj -target Hyperspace  -configuration Release build
+xcodebuild -project hills/Hills.xcodeproj -target "Hills Screensaver"   -configuration Release build
+xcodebuild -project hills/Hills.xcodeproj -target "Hills Application"   -configuration Release build
+
+python3 .claude/hooks/test_guard_default_branch.py     # the hooks have tests; run them
+python3 .claude/hooks/test_guard_signing_identity.py   # if you change one
 ```
+
+Note the two are independent. `tools/coverage.sh` drives `xcrun clang` directly
+and never opens an Xcode project, so it stayed green through a period when none
+of the savers would build at all. Run both.
+
+### Code signing
+
+**These projects sign ad-hoc, and that is the intended state, not a stopgap.**
+Every configuration sets `CODE_SIGN_IDENTITY = "-"` with an empty
+`DEVELOPMENT_TEAM`. A locally built saver carries no quarantine attribute, so it
+installs into `~/Library/Screen Savers` and runs with no Gatekeeper involvement
+and no certificate.
+
+Two things follow, and the second is the one that gets forgotten:
+
+- **Never commit a signing identity.** A committed team ID breaks the build for
+  everyone who lacks that team's certificate — which is everyone, plus CI. The
+  repos arrived carrying the upstream maintainer's `8D98N325TG` and no Release
+  target built for a year (`ss-2im`).
+- **Release signing is a command-line override**, supplied at ship time and never
+  stored: `xcodebuild ... CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM=<team>`.
+
+Enforced, not just stated: `.claude/hooks/guard-signing-identity.py` refuses a
+commit whose pbxproj changes *add* a non-empty `DEVELOPMENT_TEAM` or an identity
+other than `"-"`. It exists because the thing that reintroduces one is Xcode
+rather than a person — opening a project in the GUI while signed in to a
+Developer account rewrites the file unprompted, which is exactly how
+`8D98N325TG` got there.
+
+> **Known limit.** The guard sees `git` invocations, so it cannot stop Xcode
+> writing the file — only committing it. That is the right place to catch it,
+> since the working-tree write is harmless until it lands, but it does mean the
+> file can be dirty without anything saying so. `git status` before committing.
+
+**Distribution is a separate problem with a different answer.** A *downloaded*
+bundle is quarantined, and a quarantined ad-hoc saver does not load at all —
+tested, it fails outright rather than prompting. Publishing a downloadable build
+therefore needs a real Developer ID and notarization (`ss-i71`); shipping ad-hoc
+with `xattr -dr com.apple.quarantine` instructions was considered and rejected,
+because it has no provenance and it teaches users to disable Gatekeeper. None of
+that blocks the Metal port, which only ever needs a saver running on the author's
+own machine.
 
 ## Architecture Overview
 
