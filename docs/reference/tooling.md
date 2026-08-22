@@ -33,7 +33,7 @@ point there.
 > | before `ss-aio` | 123 fn / 455 rg, **0 uncovered** | 23 fn / 525 rg | 63.6% |
 > | after `ss-aio` | 141 fn / 935 rg, 457 uncovered | 5 fn / 47 rg | 66.7% |
 > | after `ss-or3` | 145 fn / 943 rg, 242 uncovered | **3 fn / 41 rg** | 83.7% |
-> | after `ss-ma1` | 146 fn / 950 rg, 242 uncovered | 3 fn / 41 rg | **83.8%** |
+> | after `ss-ma1` + its review follow-up | 147 fn / 951 rg, 242 uncovered | 3 fn / 41 rg | **83.8%** |
 >
 > What is left in bucket B is `impSurface` alone, and none of it is a refactor
 > anyone should do before the port: `draw()` and the destructor genuinely need
