@@ -59,6 +59,24 @@ gh pr merge --squash --delete-branch      # 7. merge only after review is clean
 
 Step 5 is not optional. Do not merge a PR that review has not reported on.
 
+**What provides step 5, precisely.** Not a GitHub app. Checked across all four
+repositories and every pull request in them: **zero** reviews have ever been
+posted by anything, and no review workflow exists in any of the four. What
+satisfies step 5 is an agent running `/code-review` against the diff and posting
+its findings as a PR comment.
+
+That matters here for one reason: a locally-run pass reads the diff, so it is
+**indifferent to draft state**. A review app with a `pull_request` trigger might
+skip drafts by default and would deadlock the rule below; this cannot, because
+there is no trigger to skip. The submodule `tests` workflow uses bare
+`on: pull_request`, whose default activity types do fire for drafts, so CI is
+unaffected either.
+
+> **Known limit.** "Review has reported" is therefore a claim the author makes
+> about work the author commissioned, with nothing server-side able to
+> contradict it. That is `I5` / `ss-e4a`, and the branch protection on the three
+> submodules requires a passing `tests` check and **zero** approving reviews.
+
 **Draft is how step 5 is enforced rather than remembered.** An open PR says
 nothing about whether it has been reviewed, so "still being reviewed" and
 "ready for you" look identical to whoever is watching the PR list. Opening as a
@@ -73,7 +91,7 @@ The protocol, in one line each:
 | **Author** | opens every PR with `--draft`, and does not ask anyone to merge it |
 | **Review** | runs against the draft; findings are addressed on the same branch |
 | **Author** | runs `gh pr ready` once review is clean, and says so |
-| **Reviewer/owner** | merges anything not marked Draft; merges nothing that is |
+| **Reviewer/owner** | merges nothing marked Draft. Not-draft is the author's signal that review is clean — it is a **necessary** condition for merging, not on its own an instruction to merge |
 
 For a change spanning both twins, **both** PRs come out of draft together or
 neither does. Marking one ready invites exactly the drift `ss-na9` describes:
@@ -152,8 +170,9 @@ bd close <id>         # Complete work
 The generated block above is beads boilerplate and stops at `git push`. In this project that is not the finish line — it describes a commit-to-default-branch flow this project does not use. A session is complete when:
 
 - the work is on a `<type>/<topic>` branch, pushed to `origin`;
-- a PR is open for it;
-- Claude Code Review has reported and its findings are addressed;
+- a PR is open for it, **opened as a draft**;
+- review has reported and its findings are addressed;
+- the PR has been taken out of draft with `gh pr ready`;
 - the PR is merged and its branch deleted.
 
 "Work is NOT complete until `git push` succeeds" still holds — it just means pushing the **feature branch**. Never satisfy it by pushing to `main`.
