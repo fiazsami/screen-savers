@@ -130,9 +130,14 @@ diff rather than being absorbed.
 > opinion".
 >
 > Found by hitting it. `ss-aio`'s investigation overrode 20 functions A → B for a
-> GL coupling that the `ss-aio` fix then removed entirely. A re-run moved
-> **one** — `impSurface::impSurface()`, the only one of the 21 whose verdict was
-> rule-set. The other 20 stayed `B` with `rule_would_say: A` sitting beside them,
+> GL coupling that the `ss-aio` fix then removed entirely. Bucket B held 23
+> entries: those 20, plus three rule-set ones on `impSurface` itself. A re-run
+> moved **one** — `impSurface::impSurface()`, whose verdict was rule-set, so the
+> rules could see `glGenBuffers` was gone and reclassify it. The rules were
+> right about all three of theirs: `draw()` and the destructor stayed `B`
+> because they still call GL. The 20 human-set entries did not move at all,
+> however thoroughly their stated reason had stopped being true — they stayed
+> `B` with `rule_would_say: A` sitting beside them,
 > so the ledger reported 22 functions of blocked work against a true figure of 5,
 > and reported bucket A as nearly empty while 457 uncovered regions waited in it.
 > `rule_would_say` recorded the disagreement exactly as designed and nothing
