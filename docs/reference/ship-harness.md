@@ -175,27 +175,12 @@ while :; do
     CLEAN)    [[ "$MERGEABLE" == "MERGEABLE" && "$CHECKSTATE" != "MISSING" ]] && break;;
     BLOCKED)  (( SECONDS > GRACE )) && fail blocked "pr #$PR: BLOCKED — required review or check not satisfied";;
     DIRTY)    fail conflict "pr #$PR: DIRTY — conflicts with $DEFAULT";;
-    DRAFT)    : ;;  # expected: this harness opened it as one. See the note below.
+    DRAFT)    fail draft-awaiting-ready "pr #$PR is still a draft — nothing here runs 'gh pr ready'";;
     BEHIND)   "${GH[@]}" pr update-branch "$PR" >&2 || true;;
     UNSTABLE) : ;;  # a non-required check is failing; required one may still pass
     UNKNOWN)  : ;;  # GitHub computes mergeability asynchronously — wait, not no
   esac
 
-> **Amended by the draft-until-reviewed policy** (`CLAUDE.md`). This spec was
-> written before it and contradicted it in two places at once: it opened PRs
-> without `--draft`, which the policy now forbids, and its poll loop treated
-> `DRAFT` as a terminal `fail draft` — so adding the flag to comply made the
-> harness fail on the PR it had just opened. Built faithfully as written, it
-> could not both obey the rule and run.
->
-> Both lines are corrected above, but the deeper consequence is unresolved and
-> belongs to whoever builds this: **the policy ends the author's involvement at
-> `gh pr ready`, and merging is the repository owner's step.** A harness that
-> polls for mergeability and then merges is automating somebody else's half of
-> the protocol. The likely shape is that `ship.sh` stops at `gh pr ready` and
-> the poll loop below becomes a wait-for-review rather than a wait-for-merge —
-> which is a different program, not a smaller one. `I8` remains unbuilt, and
-> this is now one more reason its spec is not ready to be built from.
   echo "waiting: state=$STATE check=$CHECKSTATE decision=${DECISION:-none}" >&2
   sleep 20
 done
@@ -213,6 +198,32 @@ trap - ERR
 printf '{"status":"merged","pr":%s,"merge_sha":"%s","branch":"%s","base":"%s","resumed":false}\n' \
        "$PR" "$SHA" "$BRANCH" "$DEFAULT"
 ```
+
+> **Amended by the draft-until-reviewed policy** (`CLAUDE.md`), and **still not
+> buildable** — the amendment narrows the gap rather than closing it.
+>
+> As written this spec contradicted the policy twice over: it opened PRs without
+> `--draft`, which the policy forbids, and its poll loop treated `DRAFT` as a
+> terminal failure — so adding the flag to comply made the harness fail on the
+> PR it had just opened.
+>
+> `--draft` is added above and the `DRAFT` arm now fails as
+> `draft-awaiting-ready`. That is **not a fix**; it is an honest failure. The
+> poll loop's only success exit is `STATE == CLEAN`, a draft never reaches it,
+> and nothing in this script runs `gh pr ready`. So the harness as specified
+> opens a PR and then reports, in about twenty seconds and with the true cause
+> named, that it cannot proceed. An earlier revision of this note made that arm
+> a no-op instead, which turned the same dead end into a silent nine-minute
+> timeout — worse in every respect, and caught in review.
+>
+> The unresolved part belongs to whoever builds this. **The policy ends the
+> author's involvement at `gh pr ready` and makes merging the repository
+> owner's step.** A harness that polls for mergeability and then merges is
+> automating somebody else's half of the protocol. The likely shape is that
+> `ship.sh` stops at `gh pr ready` and this loop becomes a wait-for-review
+> rather than a wait-for-merge — a different program, not a smaller one. `I8`
+> remains unbuilt, and this is one more reason its spec is not ready to be
+> built from.
 
 ### Why it is shaped this way
 

@@ -257,6 +257,14 @@ against a collapsing gain is not.
 
 ## Exit path
 
+**This path has a handoff in the middle, and it is not optional.** Steps 1–2 end
+with both submodule PRs marked ready; the repository owner merges them; steps
+3–5 resume from there. The loop does not merge its own pull requests, so a run
+that reaches step 2 is *paused*, not finished — and a run that stops there
+permanently leaves the submodules on branches and the pointer un-bumped, which
+is the state step 5 warns makes the next run's Stage 0 refuse to start. Say so
+when handing off.
+
 1. Confirm the gate is green and the working trees are clean.
 2. Push each submodule branch and open its PR **as a draft**
    (`gh pr create --draft`). Wait for review and address findings — the branch
@@ -268,7 +276,8 @@ against a collapsing gain is not.
    **take both twins out together**. Marking one ready while the other is still
    a draft invites the drift `ss-na9` describes: one twin's `master` moves, the
    other's does not, and step 4's pointer bump has nothing coherent to point
-   at. Do not merge them yourself.
+   at. **Do not merge them yourself** — hand off here, and say plainly that
+   both are ready and what merging them unblocks.
 
    Put the evidence **in** the PR body rather than a path to it: the iteration's
    loop-log entry, and any verifier findings accepted rather than fixed.
@@ -300,7 +309,7 @@ against a collapsing gain is not.
    what stops the next run's Stage 0. Never `git add -A`.
 4. Push the superproject branch and open its PR **as a draft**, wait for
    review, address findings, then `gh pr ready`. Merging is not the loop's
-   step — the loop stops at ready.
+   step — hand off again here, exactly as at step 2.
 
    **This step runs even if no submodule PR merged.** The gate rewrites the
    superproject baselines and ledgers on every run, so zero submodule merges

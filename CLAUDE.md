@@ -56,10 +56,17 @@ gh pr create --draft --fill               # 4. open the PR AS A DRAFT
 gh pr ready                               # 6. mark ready -- THE AUTHOR STOPS HERE
 ```
 
-Step 7 is the merge, and it is deliberately not in that block: `gh pr merge
---squash --delete-branch`, run by whoever owns the repository. An author who
-runs `gh pr ready` and `gh pr merge` back to back has closed the draft window
-to zero and re-created exactly the problem drafts exist to solve.
+Step 7 is the merge — `gh pr merge --squash --delete-branch` — and it is
+deliberately outside that block.
+
+**It is a separate decision, not necessarily a separate person.** This is a
+solo repository: the author usually *is* the owner, and a rule requiring
+somebody else would make every session incompletable. What the separation
+forbids is running `gh pr ready` and `gh pr merge` in one motion, which closes
+the draft window to zero and re-creates exactly the problem drafts exist to
+solve. Between them the PR must have sat in a state where review had reported
+and a human could have looked. Where an agent did the work, that human is the
+one who merges.
 
 Step 5 is not optional. Do not merge a PR that review has not reported on.
 
@@ -88,12 +95,15 @@ difference visible where the merge decision is actually made.
 
 > **Known limit — half of this is enforced and half is not.** GitHub refuses to
 > merge a draft, so once a PR *is* a draft the rule holds without anyone
-> remembering it. Nothing makes it one:
-> `.claude/hooks/guard-default-branch.py` intercepts `git commit` and
-> `git push`, and its own header puts `gh pr` out of scope. An author who
-> forgets `--draft` produces a PR indistinguishable from a reviewed one, which
-> is the precise failure this section exists to prevent. `ss-2br` proposes a
-> hook; until it exists, the first half is a convention like any other.
+> remembering it. Nothing makes it one: `.claude/hooks/guard-default-branch.py`
+> yields only invocations whose `argv[0]` is `git`, so no `gh` command reaches
+> it at all. (Its header does discuss `gh pr merge` — rejected as unblockable
+> in `ss-nla` — but `gh pr create` is never named there; the gap is the
+> parser's, not a stated exclusion.) An author who forgets `--draft` produces a
+> PR indistinguishable from a reviewed one, which is the precise failure this
+> section exists to prevent. `ss-2br` proposes a hook, and also argues it may
+> not be worth building; until then the first half is a convention like any
+> other.
 
 The protocol, in one line each:
 
@@ -101,7 +111,7 @@ The protocol, in one line each:
 | --- | --- |
 | **Author** | opens every PR with `--draft`, and does not ask anyone to merge it |
 | **Review** | runs against the draft; findings are addressed on the same branch |
-| **Author** | runs `gh pr ready` once review is clean, and says so |
+| **Author** | runs `gh pr ready` once review is clean, says so, and stops |
 | **Reviewer/owner** | merges nothing marked Draft. Not-draft is the author's signal that review is clean — it is a **necessary** condition for merging, not on its own an instruction to merge |
 
 For a change spanning both twins, **both** PRs come out of draft together or
