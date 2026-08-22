@@ -15,9 +15,12 @@ harness that measures the code lives in [`tooling.md`](tooling.md).
 > characterization cases prove is about where a vertex *is*; none of it is about
 > whether anything appears on screen.
 >
-> **helios and hyperspace render. hills is black. Options… opens for all three,
-> but only sometimes.** Two pre-existing bugs, `ss-hx9` (ours, fixed in hills#6)
-> and `ss-kvi` (the host's), neither caused by a port that has not happened.
+> **helios and hyperspace render untouched. hills was black and needed four
+> fixes to render at all. Options… opens for all three, but only sometimes.**
+> Five pre-existing bugs — `ss-hx9`, `ss-2ty`, `ss-0d8`, `ss-8ql` in hills, and
+> `ss-kvi` in the host — not one of them caused by a port that has not happened.
+> That is the argument for capturing a baseline first, made concrete: four of
+> those would have looked exactly like port damage.
 >
 > The record below is in two halves with different standing. The **code-path**
 > half is read out of the source and is as reliable as reading. The
@@ -39,7 +42,20 @@ harness that measures the code lives in [`tooling.md`](tooling.md).
 | --- | --- | --- | --- |
 | helios | **renders** | opens, **intermittently** | works in preview mode |
 | hyperspace | **renders** | opens, **intermittently** | works in preview mode |
-| hills | **black — nothing renders** | opens, **intermittently** | `ss-hx9`, fixed in hills#6 |
+| hills | **black** as found; **renders** after four fixes | opens, **intermittently** | see below |
+
+**hills now renders**, in preview and full-screen, on the display(s) the
+preference selects — confirmed 2026-08-22. It took four separate defects, and
+the count is the point: this is what "the pre-port state" actually meant for
+hills, and none of it would have been distinguishable from port damage if the
+port had gone first.
+
+| | |
+| --- | --- |
+| `ss-hx9` | `-[NSScreen mainScreen]` is the screen with the *key window*, not the main display. Compared by pointer. **Inverted** the preference — drew on the secondary, refused on the primary. |
+| `ss-2ty` | `glView` never followed the host's resize, so full-screen drew a small correct picture in the corner of a black window. Both twins already forward `setFrameSize:`; hills was the only one that did not. |
+| `ss-0d8` | `-[NSWindow screen]` is **nil for every window on the secondary display**. The "cannot tell, so draw" fallback fired 25 times in 32, so the preference suppressed nothing. |
+| `ss-8ql` | **No hills preference ever persisted** — no plist existed anywhere on the system. Every setting in the sheet reverted on close, so the checkbox could not be changed at all. |
 
 Both columns were first recorded as flat failures. Both turned out to depend on
 which display the System Settings window occupies — the preview because of a bug
@@ -113,8 +129,21 @@ The other two savers decide with `frameRect.origin == (0, 0)` and never call
 `mainScreen`, so they are unaffected — checked rather than assumed, since both
 ship the same preference.
 
-Fixed in **hills#6** by comparing `NSScreenNumber` against `CGMainDisplayID()`,
-which asks what the preference means. Tracked as `ss-hx9`.
+Fixed in **hills#6**, though not on the first attempt. Comparing `NSScreenNumber`
+against `CGMainDisplayID()` asks the right question and is unreachable most of
+the time, because `-[NSWindow screen]` is nil for every window on the secondary
+display (`ss-0d8`). The signal that works is the window's own frame origin:
+
+```
+winOrigin = 0,0        display 1 (main)        16 samples
+winOrigin = 0,-1440    display 2 (secondary)   45 samples
+```
+
+Note the sign. `NSScreen` places the secondary display at **y = +1440** while the
+saver's window for it is at **y = −1440**; the two coordinate spaces disagree,
+which is *why* `-[NSWindow screen]` is nil there and why intersecting a window
+frame against `NSScreen` frames finds nothing either. The one thing both spaces
+agree on is the origin.
 
 ### Options… is intermittent, in all three
 
@@ -229,10 +258,15 @@ hills reaches GL through `Source Code/HillsOpenGLView.h`, `SkyDome.m` and
 Stated plainly, because a baseline that overstates itself is worse than none —
 it invites a post-port comparison against a "before" nobody actually established.
 
-- **hills has no visual baseline at all.** `ss-hx9` means its renderer never
-  ran. Nothing here describes what hills is supposed to look like, so `ss-q1r`
-  has no "before" to port against. Fixing `ss-hx9` first is what would create
-  one.
+- **hills' visual baseline is younger than the other two.** Its renderer never
+  ran until four host-integration bugs were fixed on 2026-08-22, so what is
+  recorded for hills is the behaviour of a *repaired* saver, not the one that
+  was inherited. That is the right baseline to port against — `ss-q1r` compares
+  against a hills that draws — but it is not the same claim as helios' and
+  hyperspace's, which were observed untouched.
+- **Nobody has described what any of the three actually looks like.** "Renders
+  correctly" is the whole record. No frame, no palette, no motion, nothing a
+  post-port reader could compare against beyond "something appeared".
 - **Only screenshots of the System Settings pane.** The images on the pull
   request show the preview thumbnails, not a saver running full-screen, and
   nothing has been captured frame by frame. Prose does not survive contact with
