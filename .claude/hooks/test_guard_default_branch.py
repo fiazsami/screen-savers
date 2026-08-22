@@ -131,10 +131,53 @@ class GuardTest(unittest.TestCase):
     def test_cherry_pick_counts_as_creating_a_commit(self):
         self.assertEqual(REFUSE, self.run_hook("cd sub && git cherry-pick deadbeef"))
 
+    # -- separators inside a quoted message (ss-9fq) -----------------------
+    #
+    # The guard used to split the raw command on &&, ||, ; and | BEFORE lexing
+    # it, so punctuation inside a quoted commit message was read as a shell
+    # separator. The message was cut in half, neither half lexed, no git call
+    # was yielded, and a commit went straight onto a default branch. Measured
+    # before the fix: `git commit -m x` refused, `git commit -m "a; b"` allowed.
+    #
+    # It failed silently and permissively -- the same shape as ss-1sp, and the
+    # reason both are pinned here rather than trusted to inspection. Note these
+    # run against `sub`, which is on master, so a parser that yields nothing
+    # shows up as an allow where a refusal was required.
+
+    def test_semicolon_in_the_commit_message_does_not_disable_the_guard(self):
+        self.assertEqual(
+            REFUSE, self.run_hook('cd sub && git commit -m "chore: bump; regenerate"'))
+
+    def test_pipe_in_the_commit_message_does_not_disable_the_guard(self):
+        self.assertEqual(
+            REFUSE, self.run_hook('cd sub && git commit -m "before | after"'))
+
+    def test_ampersands_in_the_commit_message_do_not_disable_the_guard(self):
+        self.assertEqual(
+            REFUSE, self.run_hook('cd sub && git commit -m "signing && notarization"'))
+
+    def test_separator_in_a_push_refspec_message_does_not_disable_the_guard(self):
+        self.assertEqual(
+            REFUSE, self.run_hook('cd sub && git push origin HEAD:master'))
+
+    def test_a_real_separator_still_splits(self):
+        """Lexing first must not cost the cd tracking ss-1sp was about."""
+        self.assertEqual(REFUSE, self.run_hook('cd sub ; git commit -m "x"'))
+
     # -- fail-open, which is the design and must stay that way -------------
 
     def test_unparseable_command_is_allowed(self):
         self.assertEqual(ALLOW, self.run_hook("git commit -m 'unbalanced"))
+
+    def test_a_lexable_call_beside_an_unlexable_one_is_still_checked(self):
+        """The fallback earns its place here.
+
+        A command that will not lex as a whole is split the old way instead, so
+        the checkable half stays checkable. Without the fallback, appending an
+        unbalanced quote anywhere would be a way to switch the guard off.
+        """
+        self.assertEqual(
+            REFUSE, self.run_hook('cd sub && git commit -m x && echo "unclosed'))
 
     def test_missing_command_is_allowed(self):
         payload = {"cwd": self.parent, "tool_input": {}}

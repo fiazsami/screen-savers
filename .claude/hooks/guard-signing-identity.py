@@ -67,9 +67,13 @@ running.
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
+
+# Shared with guard-default-branch.py. Not guarded by try/except, unlike
+# heartbeat below: without this the guard cannot do its job, and a traceback
+# is the right signal for a broken install.
+from shellparse import parse
 
 try:
     from heartbeat import record
@@ -125,85 +129,6 @@ def git(repo, *args):
     except (OSError, subprocess.SubprocessError):
         return None
     return out.stdout if out.returncode == 0 else None
-
-
-def apply_cd(directory, args):
-    """The directory a `cd` leaves the shell in, as far as we can tell.
-
-    Mirrors guard-default-branch.py: only resolvable moves are applied, and a
-    move to somewhere that does not exist is not applied at all, because that
-    `cd` would fail and leave the shell where it was.
-    """
-    targets = [arg for arg in args if not arg.startswith("-")]
-    if not targets:
-        return os.path.expanduser("~")
-    if targets[0] == "-":
-        return directory
-    candidate = os.path.normpath(os.path.join(directory, targets[0]))
-    return candidate if os.path.isdir(candidate) else directory
-
-
-def segments(command):
-    """Split a shell command into pieces on &&, ||, ; and |, respecting quotes.
-
-    guard-default-branch.py splits the RAW string on those separators and lexes
-    each piece afterwards. That is wrong in a way that silently disables the
-    check: a separator inside a quoted commit message cuts the message in half,
-    both halves fail to lex, and the whole command yields nothing. Measured --
-    with a team ID staged, `git commit -m x` was refused and
-    `git commit -m "chore: bump; regenerate project"` sailed through. A message
-    containing a semicolon is not exotic, and neither is one containing a pipe.
-
-    Lexing first fixes it, because the lexer knows the quotes are quotes.
-    punctuation_chars makes shlex emit runs of shell operators as their own
-    tokens, so `x;` does not arrive glued together the way whitespace_split
-    alone would leave it.
-
-    Raises ValueError on input it cannot lex -- an unbalanced quote -- which the
-    caller treats as "allow", consistent with failing open everywhere else.
-    """
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    piece = []
-    for token in lexer:
-        if token and all(character in "&|;" for character in token):
-            yield piece
-            piece = []
-        else:
-            piece.append(token)
-    yield piece
-
-
-def parse(command, cwd):
-    """Yield (directory, repo_argument, subcommand, remaining_args) per git call."""
-    directory = cwd
-    try:
-        pieces = list(segments(command))
-    except ValueError:
-        return
-
-    for words in pieces:
-        if not words:
-            continue
-
-        if words[0] == "cd":
-            directory = apply_cd(directory, words[1:])
-            continue
-
-        if os.path.basename(words[0]) != "git":
-            continue
-
-        repo, index = None, 1
-        while index < len(words) and words[index].startswith("-"):
-            if words[index] == "-C" and index + 1 < len(words):
-                repo = words[index + 1]
-                index += 2
-            elif words[index] in ("--git-dir", "--work-tree") and index + 1 < len(words):
-                index += 2
-            else:
-                index += 1
-        if index < len(words):
-            yield directory, repo, words[index], words[index + 1:]
 
 
 # `git commit` options that consume the argument after them. Needed only to tell

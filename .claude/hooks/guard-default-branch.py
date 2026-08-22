@@ -28,6 +28,14 @@ and check the wrong repo's branch -- silently, because it fails open. That
 covered none of the eight submodule commits in the first /coverage-loop run
 (`ss-1sp`); `test_guard_default_branch.py` beside this file pins it.
 
+That parsing now lives in `shellparse.py`, shared with
+`guard-signing-identity.py`. It was extracted after `ss-9fq`, where this hook
+was found to be defeated by a `;` or a `|` inside a quoted commit message: the
+raw string was split on separators before being lexed, so the message was cut in
+half, neither half lexed, no git call was yielded, and the guard allowed a commit
+straight onto a default branch. The newer guard had already been fixed; keeping
+two copies of that parser is how one of them stays wrong.
+
 Reads the hook payload on stdin. Exit 2 blocks the call and shows stderr to the
 model; exit 0 allows it. Anything unexpected allows -- a guard that fails closed
 on its own bugs would be worse than the problem. Every invocation, allowed or
@@ -53,10 +61,14 @@ script's own preflight.
 
 import json
 import os
-import re
-import shlex
 import subprocess
 import sys
+
+# Not guarded by try/except, unlike heartbeat below: without this the guard
+# cannot do its job at all, and a traceback is the right signal for a broken
+# install. A missing-module fallback here would be a guard that silently checks
+# nothing, which is the exact failure mode `ss-9fq` and `ss-1sp` were both about.
+from shellparse import parse
 
 try:
     from heartbeat import record
@@ -93,68 +105,6 @@ def default_branch(repo):
         if git(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{name}") is not None:
             return name
     return None
-
-
-def apply_cd(directory, args):
-    """The directory a `cd` leaves the shell in, as far as we can tell.
-
-    Only resolvable moves are applied, and a move to somewhere that does not
-    exist is not applied at all -- that `cd` would fail, leaving the shell where
-    it was under `;` and short-circuiting the rest under `&&`.
-    """
-    targets = [arg for arg in args if not arg.startswith("-")]
-    if not targets:
-        return os.path.expanduser("~")  # bare `cd` goes home; nothing of ours is there
-    if targets[0] == "-":
-        return directory  # the previous directory, which we do not track
-    candidate = os.path.normpath(os.path.join(directory, targets[0]))
-    return candidate if os.path.isdir(candidate) else directory
-
-
-def parse(command, cwd):
-    """Yield (directory, repo_argument, subcommand, remaining_args) for each git
-    call in a shell command. Splitting on the usual separators is enough here:
-    the point is to catch an ordinary mistake, not to defeat someone who is
-    trying.
-
-    `directory` is the one the call will actually run in. Tracking `cd` across
-    the pieces is the whole reason this takes `cwd`: the payload's cwd is the
-    *session* directory, so resolving against it alone checks the superproject
-    for `cd helios && git commit` -- which is how an agent working inside a
-    submodule naturally writes it, and which therefore went unguarded entirely
-    until the first /coverage-loop run counted the hook's own decisions
-    (`ss-1sp`).
-
-    A `cd` is applied whatever separator precedes it, because whether it
-    succeeds is a question about the filesystem and we can just ask.
-    """
-    directory = cwd
-    for piece in re.split(r"&&|\|\||;|\|", command):
-        try:
-            words = shlex.split(piece)
-        except ValueError:
-            continue
-        if not words:
-            continue
-
-        if words[0] == "cd":
-            directory = apply_cd(directory, words[1:])
-            continue
-
-        if os.path.basename(words[0]) != "git":
-            continue
-
-        repo, index = None, 1
-        while index < len(words) and words[index].startswith("-"):
-            if words[index] == "-C" and index + 1 < len(words):
-                repo = words[index + 1]
-                index += 2
-            elif words[index] in ("--git-dir", "--work-tree") and index + 1 < len(words):
-                index += 2
-            else:
-                index += 1
-        if index < len(words):
-            yield directory, repo, words[index], words[index + 1:]
 
 
 def refuse(reason, message):
