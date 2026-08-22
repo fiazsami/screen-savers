@@ -15,6 +15,7 @@ implications for whether the reasoning still applies.
 | [L3](2026-08-21-phase-1-retrospective.md) | 2026-08-21 | phase 1 as built | 10 | F3–F6 (F1 partial, F2 closed) |
 | [L4](2026-08-21-first-coverage-loop-run.md) | 2026-08-21 | the first `/coverage-loop` run | 10 | F3–F6, F8, F9 (F2 closed) |
 | [L5](2026-08-22-second-coverage-loop-run.md) | 2026-08-22 | the second `/coverage-loop` run | 11 | F2–F8, F10 (F1 closed) |
+| [L6](2026-08-22-the-impcubevolume-unblock.md) | 2026-08-22 | the `impCubeVolume` unblock and four reviews of it | 10 | F2, F3, F5, F8 (F1 partial; F4, F6, F7, F9 closed) |
 
 ## Status vocabulary
 
