@@ -20,7 +20,7 @@
   ],
   "counts": {
     "testable as-is": 147,
-    "needs refactoring first": 3,
+    "needs refactoring first": 2,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
   },
@@ -1209,24 +1209,6 @@
       "shared_copy": "identical"
     },
     {
-      "id": "Implicit/impSurface.cpp::impSurface::addTriStripLength(unsigned char)",
-      "file": "Implicit/impSurface.cpp",
-      "name": "impSurface::addTriStripLength(unsigned char)",
-      "line": 140,
-      "regions": 3,
-      "uncovered_regions": 3,
-      "verdict": "B",
-      "rule": "a:pure",
-      "reason": "Still B, and now for the third distinct reason in this entry's history -- worth stating plainly because the first two are both gone. It is not GL-coupled (ss-aio de-GL'd the constructor) and it is not unobservable in principle (ss-or3 added accessors). It is dead in this build configuration: USE_TRIANGLE_STRIPS is 0, so draw() and polygonize never call it, and nothing reads triStripLengths or num_tristrips. Testing it means either an accessor for those two members or flipping the build flag, and the flag is a decision the Metal port should make rather than a test. Deliberately NOT marked C: a port that enables triangle strips makes this live code, and C would hide it.",
-      "set_by": "human",
-      "shared_copy": "identical",
-      "decided": "2026-08-21",
-      "rule_would_say": {
-        "verdict": "A",
-        "rule": "a:pure"
-      }
-    },
-    {
       "id": "Implicit/impSurface.cpp::impSurface::addIndex(unsigned int)",
       "file": "Implicit/impSurface.cpp",
       "name": "impSurface::addIndex(unsigned int)",
@@ -1271,7 +1253,7 @@
       "id": "Implicit/impSurface.h::impSurface::getVertexCount() const",
       "file": "Implicit/impSurface.h",
       "name": "impSurface::getVertexCount() const",
-      "line": 100,
+      "line": 105,
       "regions": 1,
       "uncovered_regions": 0,
       "verdict": "A",
@@ -1284,7 +1266,7 @@
       "id": "Implicit/impSurface.h::impSurface::getIndexCount() const",
       "file": "Implicit/impSurface.h",
       "name": "impSurface::getIndexCount() const",
-      "line": 101,
+      "line": 106,
       "regions": 1,
       "uncovered_regions": 0,
       "verdict": "C",
@@ -1297,7 +1279,7 @@
       "id": "Implicit/impSurface.h::impSurface::getVertex(unsigned int) const",
       "file": "Implicit/impSurface.h",
       "name": "impSurface::getVertex(unsigned int) const",
-      "line": 124,
+      "line": 129,
       "regions": 1,
       "uncovered_regions": 0,
       "verdict": "A",
@@ -1310,7 +1292,7 @@
       "id": "Implicit/impSurface.h::impSurface::getIndex(unsigned int) const",
       "file": "Implicit/impSurface.h",
       "name": "impSurface::getIndex(unsigned int) const",
-      "line": 125,
+      "line": 130,
       "regions": 1,
       "uncovered_regions": 0,
       "verdict": "C",

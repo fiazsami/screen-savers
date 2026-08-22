@@ -33,12 +33,16 @@ point there.
 > | before `ss-aio` | 123 fn / 455 rg, **0 uncovered** | 23 fn / 525 rg | 63.6% |
 > | after `ss-aio` | 141 fn / 935 rg, 457 uncovered | 5 fn / 47 rg | 66.7% |
 > | after `ss-or3` | 145 fn / 943 rg, 242 uncovered | **3 fn / 41 rg** | 83.7% |
-> | after `ss-ma1` + its review follow-up | 147 fn / 951 rg, 242 uncovered | 3 fn / 41 rg | **83.8%** |
+> | after `ss-ma1` + its review follow-up | 147 fn / 951 rg, 242 uncovered | 3 fn / 41 rg | 83.8% |
+> | after `ss-3c8` | 147 fn / 951 rg, 242 uncovered | **2 fn / 38 rg** | **84.0%** |
 >
-> What is left in bucket B is `impSurface` alone, and none of it is a refactor
-> anyone should do before the port: `draw()` and the destructor genuinely need
-> a GL context, and `addTriStripLength` is dead in this build configuration
-> because `USE_TRIANGLE_STRIPS` is 0. **Criterion 1 is no longer waived** — the
+> What is left in bucket B is `impSurface` alone, and neither entry is a refactor
+> anyone should do before the port: `draw()` and the destructor genuinely need a
+> GL context. `addTriStripLength` was a third until `ss-3c8` found it was
+> guarded `#ifdef` against a macro every call site tests with `#if` — compiled
+> in, callable by nothing, and counted as three permanently uncoverable regions.
+> It is now not compiled, which is the only entry this project has removed from
+> a denominator rather than covered. **Criterion 1 is no longer waived** — the
 > geometry the port consumes is characterized against analytic geometry rather
 > than a golden run, which is what `ss-53w` asked for and could not have.
 >
