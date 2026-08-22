@@ -301,9 +301,17 @@ entered from a stop condition with verifier ≠ `fail`.
      ./tools/ship.sh <submodule> --method merge
    Append each JSON result to .claude/artifacts/ship-log.json.
    EMPTY STDOUT MEANS STOP — it is the one outcome the contract cannot describe.
-   status=conflict|review-failed|review-missing|blocked → file a bd issue with
-   the PR URL and continue shipping the others. Never retry a failed review by
-   dispatching another writer at it (P3).
+   status=conflict|review-failed|review-missing|blocked|draft-awaiting-ready →
+   file a bd issue with the PR URL and continue shipping the others. Never
+   retry a failed review by dispatching another writer at it (P3).
+
+   `draft-awaiting-ready` is listed for completeness and is currently the
+   status EVERY run returns, since step 2 above passes `--draft` and nothing in
+   the script runs `gh pr ready`. Without it here the first submodule falls
+   through to "Anything else → leave every branch in place and report the
+   ship-log verbatim", the orchestrator halts, and the remaining submodules are
+   never attempted. That is a contract gap on top of a script that does not yet
+   work — see the note under §2's poll loop.
 3. If zero submodules merged, the superproject still has a ratchet advance and
    rewritten ledgers on its branch. Ship it alone, or discard the measurement
    and say which — do not leave a dirty tree and an uncommitted advance.

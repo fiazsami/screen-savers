@@ -257,27 +257,41 @@ against a collapsing gain is not.
 
 ## Exit path
 
-**This path has a handoff in the middle, and it is not optional.** Steps 1–2 end
-with both submodule PRs marked ready; the repository owner merges them; steps
-3–5 resume from there. The loop does not merge its own pull requests, so a run
-that reaches step 2 is *paused*, not finished — and a run that stops there
-permanently leaves the submodules on branches and the pointer un-bumped, which
-is the state step 5 warns makes the next run's Stage 0 refuse to start. Say so
-when handing off.
+**This path has TWO handoffs, and neither is optional.** The loop never merges
+its own pull requests, so it pauses twice:
+
+| | the loop does | then it stops until |
+| --- | --- | --- |
+| first | steps 1–2: submodule PRs opened as drafts, reviewed, marked ready | the owner merges them |
+| second | steps 3–4: pointers bumped, superproject PR opened as a draft, reviewed, marked ready | the owner merges it |
+| then | steps 5–7: re-attach the submodules, close out | — |
+
+Steps 5–7 sit after the **second** handoff, not the first: step 5 re-attaches
+the submodules and says explicitly that this waits until the superproject PR
+has merged, because until then the default branch is not yet where the pointer
+says it is. Running them straight after step 4 deletes branches while the bump
+is still an unmerged draft.
+
+A run that reaches either pause is *paused*, not finished. Say which one it is
+when handing off, and say what merging unblocks.
 
 1. Confirm the gate is green and the working trees are clean.
 2. Push each submodule branch and open its PR **as a draft**
-   (`gh pr create --draft`). Wait for review and address findings — the branch
+   (`gh pr create --draft -R fiazsami/<submodule>` — the `-R` matters, these
+   are fork clones and `gh` otherwise resolves to the upstream). Wait for review and address findings — the branch
    policy makes this non-optional. Review here is an agent running
    `/code-review` against the diff, not a GitHub app; draft state does not
    affect it.
 
-   Take them out of draft with `gh pr ready` only once review is clean, and
+   Take them out of draft with `gh pr ready -R fiazsami/<submodule>` only once
+   review is clean, and
    **take both twins out together**. Marking one ready while the other is still
    a draft invites the drift `ss-na9` describes: one twin's `master` moves, the
    other's does not, and step 4's pointer bump has nothing coherent to point
-   at. **Do not merge them yourself** — hand off here, and say plainly that
-   both are ready and what merging them unblocks.
+   at. **Do not merge them yourself** — hand off here, and say plainly which
+   PRs are ready and what merging them unblocks. (A run may target one
+   submodule, two or three; "both twins" applies only when the run touched the
+   shared core that `helios` and `hyperspace` carry. `hills` has no twin.)
 
    Put the evidence **in** the PR body rather than a path to it: the iteration's
    loop-log entry, and any verifier findings accepted rather than fixed.

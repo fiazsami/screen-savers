@@ -27,7 +27,13 @@ Waiting for review is not optional. Do not merge a PR review has not reported on
 reviewed, so "still being reviewed" and "ready for you" look identical to
 whoever is watching the PR list. Draft makes the difference visible where the
 merge decision is made, and GitHub refuses to merge a draft. The author's last
-step is `gh pr ready`; merging is somebody else's.
+step is `gh pr ready`.
+
+Merging is a separate **decision**, not necessarily a separate person — this is
+a solo repository and a rule requiring somebody else would make every session
+incompletable. What is forbidden is running `gh pr ready` and `gh pr merge` in
+one motion, which closes the draft window to zero. Between them the PR must
+have sat in a state where review had reported and a human could have looked.
 
 Review is **not** a GitHub app — no review has ever been posted by anything in
 any of these four repositories, and no review workflow exists. It is an agent
