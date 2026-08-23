@@ -253,13 +253,89 @@ to move only because the code got better.
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+tools/coverage.sh                       # the ratchet gate, all three submodules
+tools/coverage.sh --quiet helios        # one of them, summary line only
+tools/triage.sh                         # classify what is still uncovered
+
+# The savers themselves. No signing arguments -- see below.
+xcodebuild -project helios/Helios.xcodeproj         -target Helios      -configuration Release build
+xcodebuild -project hyperspace/Hyperspace.xcodeproj -target Hyperspace  -configuration Release build
+xcodebuild -project hills/Hills.xcodeproj -target "Hills Screensaver"   -configuration Release build
+xcodebuild -project hills/Hills.xcodeproj -target "Hills Application"   -configuration Release build
+
+python3 .claude/hooks/test_shellparse.py               # the hooks have tests; run
+python3 .claude/hooks/test_guard_default_branch.py     # all three if you change
+python3 .claude/hooks/test_guard_signing_identity.py   # any of them
 ```
+
+Note the two are independent. `tools/coverage.sh` drives `xcrun clang` directly
+and never opens an Xcode project, so it stayed green through a period when none
+of the savers would build at all. Run both.
+
+### Code signing
+
+**These projects sign ad-hoc, and that is the intended state, not a stopgap.**
+Every build configuration sets `CODE_SIGN_IDENTITY = "-"` and
+`CODE_SIGN_STYLE = Manual`, with an empty `DEVELOPMENT_TEAM`. A locally built
+saver carries no quarantine attribute, so it installs into
+`~/Library/Screen Savers` and runs with no Gatekeeper involvement and no
+certificate.
+
+`Manual` rather than `Automatic` is deliberate and was a review finding: an
+identity of `"-"` needs no team and no profile, so both styles build and seal
+identically — but `Automatic` is precisely the mode in which Xcode resolves a
+team and writes it into the file. Choosing it would have meant adopting the
+setting that causes the problem the rest of this section prevents.
+
+**A team ID has two spellings, and only one of them is a build setting.**
+`DEVELOPMENT_TEAM` lives in `buildSettings`; `DevelopmentTeam` is what Xcode
+writes under `TargetAttributes` at project level. hyperspace carried one there
+through the very commit that was meant to remove its team — every check passed
+and the tree still held `8D98N325TG`, because everything looked for the first
+spelling. Search for both.
+
+Two things follow, and the second is the one that gets forgotten:
+
+- **Never commit a signing identity.** A committed team ID breaks the build for
+  everyone who lacks that team's certificate — which is everyone, plus CI. The
+  repos arrived carrying the upstream maintainer's `8D98N325TG` and no Release
+  target built for a year (`ss-2im`).
+- **Release signing is a command-line override**, supplied at ship time and never
+  stored: `xcodebuild ... CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM=<team>`.
+
+Note that an *empty* `CODE_SIGN_IDENTITY` is not the same as an empty team and is
+not acceptable: it yields an unsealed, linker-signed bundle
+(`flags=0x20002`) where `"-"` yields a sealed one (`0x10002` plus
+`Sealed Resources`). Only the second is tamper-evident, and both print
+`** BUILD SUCCEEDED **`.
+
+Enforced in two places, which catch different things:
+
+| | sees | catches |
+| --- | --- | --- |
+| `.claude/hooks/guard-signing-identity.py` | commits made through this harness | a team or identity being added to a pbxproj, in either spelling, whether staged already, staged by the same command, or picked up by `-a` or a pathspec |
+| each submodule's `tests` workflow | whatever arrives on a branch | a non-empty team in the committed file, and a bundle that builds but does not verify |
+
+The hook exists because the thing that reintroduces an identity is Xcode rather
+than a person — opening a project in the GUI while signed in to a Developer
+account rewrites the file unprompted, which is exactly how `8D98N325TG` got
+there. The CI check exists because the hook cannot see a commit made any other
+way, and because *building* proves nothing about *signing*.
+
+> **Known limit.** The guard sees `git` invocations, so it cannot stop Xcode
+> writing the file — only committing it. That is the right place to catch it,
+> since the working-tree write is harmless until it lands, but it does mean the
+> file can be dirty without anything saying so. `git status` before committing.
+
+**Distribution is a separate problem with a different answer.** A *downloaded*
+bundle is quarantined, and a quarantined ad-hoc saver does not load at all —
+tested, it fails outright rather than prompting. Publishing a downloadable build
+therefore needs a real Developer ID and notarization (`ss-i71`); shipping ad-hoc
+with `xattr -dr com.apple.quarantine` instructions was considered and rejected,
+because it has no provenance and it teaches users to disable Gatekeeper. None of
+that blocks the Metal port, which only ever needs a saver running on the author's
+own machine.
 
 ## Architecture Overview
 
