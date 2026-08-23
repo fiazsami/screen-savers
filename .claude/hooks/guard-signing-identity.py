@@ -50,6 +50,19 @@ Scope notes:
   class of mistake, but it is set to "" throughout and nothing writes to it
   automatically, so guarding it would be scope this issue did not ask for.
 
+  CODE_SIGN_STYLE is left alone too, and that one deserves an explanation
+  rather than a mention, because CLAUDE.md calls `Automatic` "precisely the
+  mode in which Xcode resolves a team and writes it into the file" -- so the
+  obvious question is why the guard permits it. Review asked exactly that.
+  Because `Automatic` is not itself the harm and refusing it would be refusing
+  a symptom: what breaks the build for everyone is the team ID, and that is
+  caught here whatever the style says. A project can sit on `Automatic`
+  indefinitely with an empty team and build identically. Add it to this guard
+  and every commit that touches a pbxproj for an unrelated reason has to be
+  clean of a setting Xcode rewrites on a whim, with no way to proceed -- the
+  same argument that keeps cherry-pick and rebase out of scope above.
+  `test_adding_the_adhoc_identity_is_allowed` asserts that ALLOW deliberately.
+
 Which repository a call belongs to is decided by tracking `cd` across the
 command line, for the reason `guard-default-branch.py` documents at length: the
 payload's cwd is the *session* directory, so `cd helios && git commit` resolves
@@ -135,11 +148,19 @@ def git(repo, *args):
 # a pathspec from a flag's value, so an omission costs a false positive rather
 # than a miss -- `-m fix` would read `fix` as a pathspec and check the worktree
 # too, which refuses nothing extra unless the worktree is genuinely dirty.
+#
+# THE INVARIANT ONLY HOLDS ONE WAY, so entries here have to be earned. `-S` and
+# `-u` were in this set and should not have been: both take an OPTIONAL ATTACHED
+# value (`-S[keyid]`, `-u[mode]`), never a following argument. Listing them
+# turned a following pathspec into "that flag's value", so
+# `git commit -S Thing.xcodeproj/project.pbxproj` skipped the worktree diff
+# entirely -- a miss, which is the direction the comment above says cannot
+# happen. Found by review. `--gpg-sign=` and `--untracked-files=` take their
+# values inline for the same reason and need no entry.
 VALUE_FLAGS = {
     "-m", "--message", "-c", "--reedit-message", "-C", "--reuse-message",
     "-F", "--file", "--author", "--date", "-t", "--template", "--cleanup",
-    "--fixup", "--squash", "--trailer", "-S", "--gpg-sign", "-u",
-    "--untracked-files",
+    "--fixup", "--squash", "--trailer",
 }
 
 
@@ -214,6 +235,30 @@ def main():
     cwd = payload.get("cwd") or os.getcwd()
     checked = []
 
+    # Does this same command stage anything before it commits?
+    #
+    # A PreToolUse hook runs BEFORE the command, so for
+    # `git add -A && git commit -m x` nothing is staged yet: the cached diff is
+    # empty, `commits_the_worktree(['-m','x'])` is False, and the worktree diff
+    # is never consulted either. The commit sails through. Measured on a repo
+    # with an unstaged team ID in a tracked pbxproj:
+    #
+    #	git commit -am x               exit 2   blocked
+    #	git add -A && git commit -m x  exit 0   ALLOWED
+    #
+    # That is the dominant commit idiom in this project and precisely the
+    # scenario the hook exists for -- Xcode rewrites a tracked file, the author
+    # stages everything, commits. Found by review; every test in the suite
+    # staged in a separate step, so nothing covered it.
+    #
+    # Splitting the two across separate Bash calls is still caught: by the time
+    # the commit arrives the content really is staged, and the cached diff sees
+    # it.
+    stages_first = any(
+        subcommand in ("add", "stage")
+        for _, _, subcommand, _ in parse(command, cwd)
+    )
+
     for directory, repo_arg, subcommand, rest in parse(command, cwd):
         if subcommand != "commit":
             continue
@@ -224,7 +269,7 @@ def main():
         name = os.path.basename(os.path.abspath(repo))
 
         diffs = [git(repo, "diff", "--cached", "-U0", "--", "*.pbxproj")]
-        if commits_the_worktree(rest):
+        if stages_first or commits_the_worktree(rest):
             diffs.append(git(repo, "diff", "-U0", "--", "*.pbxproj"))
 
         found = []

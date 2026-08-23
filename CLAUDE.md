@@ -264,8 +264,9 @@ xcodebuild -project hyperspace/Hyperspace.xcodeproj -target Hyperspace  -configu
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Screensaver"   -configuration Release build
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Application"   -configuration Release build
 
-python3 .claude/hooks/test_guard_default_branch.py     # the hooks have tests; run them
-python3 .claude/hooks/test_guard_signing_identity.py   # if you change one
+python3 .claude/hooks/test_shellparse.py               # the hooks have tests; run
+python3 .claude/hooks/test_guard_default_branch.py     # all three if you change
+python3 .claude/hooks/test_guard_signing_identity.py   # any of them
 ```
 
 Note the two are independent. `tools/coverage.sh` drives `xcrun clang` directly
@@ -313,7 +314,7 @@ Enforced in two places, which catch different things:
 
 | | sees | catches |
 | --- | --- | --- |
-| `.claude/hooks/guard-signing-identity.py` | commits made through this harness | a team or identity being added to a pbxproj, in either spelling, staged or not |
+| `.claude/hooks/guard-signing-identity.py` | commits made through this harness | a team or identity being added to a pbxproj, in either spelling, whether staged already, staged by the same command, or picked up by `-a` or a pathspec |
 | each submodule's `tests` workflow | whatever arrives on a branch | a non-empty team in the committed file, and a bundle that builds but does not verify |
 
 The hook exists because the thing that reintroduces an identity is Xcode rather

@@ -41,9 +41,41 @@ import shlex
 
 # Tokens made entirely of these characters are shell separators rather than
 # arguments -- `&&`, `||`, `;`, `|`, `;;`.
-SEPARATOR_CHARACTERS = "&|;"
+#
+# A NEWLINE IS ONE OF THEM, and leaving it out was a hole exactly as wide as
+# `ss-9fq`. shlex treats `\n` as ordinary whitespace, so with `whitespace_split`
+# a two-line command lexed into a single piece:
+#
+#	segments('git add -A\ngit commit -m "x"')
+#	  -> [['git', 'add', '-A', 'git', 'commit', '-m', 'x']]
+#
+# `parse` then yields `add` and nothing else, the commit is invisible, and both
+# guards allow. Measured against both hooks before the fix: exit 0 from each on
+# a default branch with an offending change. Found by review, not by the tests,
+# because every case in the suite was written on one line.
+#
+# It also fixes backslash continuations for free. shlex does not implement them,
+# so `\` + newline left a literal '\n' token at the head of the next piece,
+# which matched neither the `cd` branch nor `basename(...) == "git"` and dropped
+# the call silently.
+#
+# Redirection operators are in here too. They are not separators in the shell's
+# sense, but ending the piece at one has the same useful effect: the target
+# lands in a piece of its own, whose first word is neither `cd` nor `git`, so it
+# is ignored. Before this, `git commit -m x > /dev/null` handed `>` and
+# `/dev/null` to the signing guard as trailing arguments, which read them as a
+# pathspec and refused a commit that would have changed nothing. Measured: exit
+# 2 with the redirection, exit 0 without it.
+SEPARATOR_CHARACTERS = "&|;\n<>"
 
-_RAW_SEPARATORS = re.compile(r"&&|\|\||;|\|")
+# Subshell boundaries. `punctuation_chars` emits these as their own tokens, but
+# they are not separators, so they used to glue onto the neighbouring piece:
+# `(cd helios && git commit -m x)` gave [['(', 'cd', 'helios'], [...]], the `cd`
+# branch never matched, and the commit resolved against the session directory
+# instead of the submodule. `parse` treats them as directory scope markers.
+SUBSHELL_OPEN, SUBSHELL_CLOSE = "(", ")"
+
+_RAW_SEPARATORS = re.compile(r"&&|\|\||;|\||\n")
 
 # git's own options -- the ones before the subcommand -- that consume the NEXT
 # argument rather than carrying their value inline. Miss one and the scan stops
@@ -69,12 +101,27 @@ def _lexed(command):
 
     Raises ValueError on input it cannot lex, which the caller handles.
     """
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    # `\n` has to be named as punctuation AND removed from whitespace. Naming it
+    # alone is not enough -- shlex eats whitespace before it classifies anything,
+    # so the newline never reaches the punctuation test and a two-line command
+    # lexes as one. Removing it from whitespace alone is not enough either: the
+    # newline then glues to the neighbouring word (`-A\ngit`). Both, together.
+    #
+    # A newline inside quotes is unaffected either way, so a multi-line commit
+    # message still arrives as a single token.
+    lexer = shlex.shlex(command, posix=True, punctuation_chars="();<>|&\n")
+    lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
 
     pieces, piece = [], []
     for token in lexer:
-        if token and all(character in SEPARATOR_CHARACTERS for character in token):
+        if token in (SUBSHELL_OPEN, SUBSHELL_CLOSE):
+            # Its own piece, so `parse` can see the scope change. Emitting it
+            # inside a neighbouring piece is what let a subshell hide a `cd`.
+            pieces.append(piece)
+            pieces.append([token])
+            piece = []
+        elif token and all(character in SEPARATOR_CHARACTERS for character in token):
             pieces.append(piece)
             piece = []
         else:
@@ -144,8 +191,21 @@ def parse(command, cwd):
     not optional.
     """
     directory = cwd
+    scopes = []
     for words in segments(command):
         if not words:
+            continue
+
+        # A `cd` inside a subshell does not outlive it, so the directory is
+        # saved on `(` and restored on `)`. Without the restore, treating the
+        # parens as plain separators would fix the missed `cd` and introduce a
+        # worse bug: `(cd sub && git x) && git y` would check `y` against `sub`.
+        if words[0] == SUBSHELL_OPEN:
+            scopes.append(directory)
+            continue
+        if words[0] == SUBSHELL_CLOSE:
+            if scopes:
+                directory = scopes.pop()
             continue
 
         if words[0] == "cd":

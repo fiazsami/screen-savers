@@ -82,6 +82,49 @@ class Segments(unittest.TestCase):
         self.assertEqual([["git", "commit", "--author=a@b.c"]],
                          segments("git commit --author=a@b.c"))
 
+    # -- newlines, which are separators too --------------------------------
+    #
+    # Every case above this block was written on one line, which is why review
+    # found the hole rather than the suite: shlex eats `\n` as whitespace, so a
+    # two-line command lexed into a single piece and the second command
+    # vanished. Same silent-permissive shape as ss-9fq.
+
+    def test_a_newline_separates_commands(self):
+        self.assertEqual([["git", "add", "-A"], ["git", "commit", "-m", "x"]],
+                         segments("git add -A\ngit commit -m x"))
+
+    def test_a_carriage_return_newline_separates_commands(self):
+        self.assertEqual([["git", "add", "-A"], ["git", "commit", "-m", "x"]],
+                         segments("git add -A\r\ngit commit -m x"))
+
+    def test_a_newline_inside_quotes_is_not_a_separator(self):
+        """A multi-line commit message must stay one token."""
+        self.assertEqual([["git", "commit", "-m", "line one\nline two"]],
+                         segments('git commit -m "line one\nline two"'))
+
+    def test_a_backslash_continuation_does_not_strand_a_token(self):
+        """It used to leave a literal newline heading the next piece.
+
+        `words[0]` was then '\n', matching neither the cd branch nor git, so the
+        call was dropped entirely.
+        """
+        self.assertEqual([["cd", "sub"], [], ["git", "commit", "-m", "x"]],
+                         segments("cd sub && \\\n  git commit -m x"))
+
+    # -- redirections are not arguments ------------------------------------
+
+    def test_a_redirection_target_lands_in_its_own_piece(self):
+        """Otherwise `>` and its target are read as a commit pathspec."""
+        self.assertEqual([["git", "commit", "-m", "x"], ["/dev/null"]],
+                         segments("git commit -m x > /dev/null"))
+
+    # -- subshells ---------------------------------------------------------
+
+    def test_subshell_parens_are_their_own_pieces(self):
+        """Glued to a neighbour they hid the cd inside: ['(', 'cd', 'sub']."""
+        self.assertIn(["("], segments("(cd sub && git commit)"))
+        self.assertIn([")"], segments("(cd sub && git commit)"))
+
     # -- the fallback ------------------------------------------------------
 
     def test_unlexable_input_falls_back_to_raw_splitting(self):

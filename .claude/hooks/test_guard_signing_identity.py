@@ -74,7 +74,10 @@ def run(command, cwd):
     return result.returncode, result.stderr
 
 
-class GuardSigningIdentity(unittest.TestCase):
+class Fixture(unittest.TestCase):
+    """Setup and helpers only. Test classes inherit this rather than each other,
+    so adding a class does not re-run every existing case against it."""
+
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.parent = os.path.join(self.tmp, "screen-savers")
@@ -87,6 +90,20 @@ class GuardSigningIdentity(unittest.TestCase):
         write(self.pbxproj, text)
         git(self.child, "add", "-A")
 
+    def dirty_unstaged(self, text=None):
+        """Put an offending team ID in the pbxproj and leave it UNSTAGED.
+
+        This is the real shape of the hazard -- Xcode rewrites a tracked file
+        underneath the author, who has not staged anything yet -- and no test
+        used it until review found that `git add -A && git commit` sailed
+        straight through. `dirty` stages as a separate step, which is precisely
+        the arrangement the bypass does not occur in.
+        """
+        write(self.pbxproj, text or CLEAN.replace(
+            'DEVELOPMENT_TEAM = "";', "DEVELOPMENT_TEAM = 8D98N325TG;"))
+
+
+class GuardSigningIdentity(Fixture):
     # --- the thing it exists to catch -------------------------------------
 
     def test_added_team_id_is_refused(self):
@@ -289,8 +306,8 @@ class GuardSigningIdentity(unittest.TestCase):
     # These are the whole reason parse() lexes before it splits. Splitting the
     # raw string cuts a quoted message in half at its punctuation, both halves
     # fail to lex, and the command yields no git calls at all -- so the guard
-    # silently allows everything. guard-default-branch.py still has this shape;
-    # filed rather than fixed here.
+    # silently allows everything. guard-default-branch.py had the same shape and
+    # no longer does -- both guards now share shellparse, which is what fixed it.
 
     def test_semicolon_in_the_commit_message_does_not_disable_the_guard(self):
         self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
@@ -315,6 +332,68 @@ class GuardSigningIdentity(unittest.TestCase):
         self.dirty(CLEAN.replace('DEVELOPMENT_TEAM = "";',
                                  "DEVELOPMENT_TEAM = 8D98N325TG;"))
         code, _ = run('cd helios ; git commit -m "x"', self.parent)
+        self.assertEqual(code, REFUSE)
+
+
+
+class StagedInTheSameCommand(Fixture):
+    """The idiom this project actually uses, and the one nothing covered.
+
+    A PreToolUse hook runs BEFORE the command, so for `git add -A && git commit`
+    nothing is staged when the check runs: the cached diff is empty and, with no
+    -a and no pathspec, the worktree diff was never consulted either. Measured
+    before the fix -- `git commit -am x` refused, `git add -A && git commit -m x`
+    allowed. Every other test in this file stages in a separate step, which is
+    exactly why the suite was blind to it.
+    """
+
+    def test_add_then_commit_in_one_command_is_refused(self):
+        self.dirty_unstaged()
+        code, _ = run("git add -A && git commit -m x", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_add_then_commit_with_a_semicolon_is_refused(self):
+        self.dirty_unstaged()
+        code, _ = run("git add . ; git commit -m x", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_add_then_commit_on_separate_lines_is_refused(self):
+        self.dirty_unstaged()
+        code, _ = run("git add -A\ngit commit -m x", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_git_stage_counts_too(self):
+        self.dirty_unstaged()
+        code, _ = run("git stage -A && git commit -m x", self.child)
+        self.assertEqual(code, REFUSE)
+
+    def test_a_clean_worktree_still_commits(self):
+        """The fix must not refuse everything the moment an add appears."""
+        code, _ = run("git add -A && git commit -m x", self.child)
+        self.assertEqual(code, ALLOW)
+
+
+class ArgumentsThatAreNotPathspecs(Fixture):
+    def test_a_redirection_is_not_read_as_a_pathspec(self):
+        """`>` and its target used to make commits_the_worktree return True.
+
+        The result was refusing a commit that would have changed nothing, with a
+        message telling the author to revert an unrelated edit.
+        """
+        self.dirty_unstaged()
+        code, _ = run("git commit -m x > /dev/null", self.child)
+        self.assertEqual(code, ALLOW)
+
+    def test_dash_S_does_not_swallow_a_pathspec(self):
+        """-S takes an optional ATTACHED value, so the next word is a pathspec.
+
+        Listing it as a value-taking flag turned that pathspec into the flag's
+        value and skipped the worktree diff -- a miss, not a false positive,
+        which is the direction VALUE_FLAGS' comment says cannot happen.
+        """
+        self.dirty_unstaged()
+        code, _ = run("git commit -S Thing.xcodeproj/project.pbxproj -m x",
+                      self.child)
         self.assertEqual(code, REFUSE)
 
 

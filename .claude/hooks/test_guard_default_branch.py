@@ -164,6 +164,28 @@ class GuardTest(unittest.TestCase):
         """Lexing first must not cost the cd tracking ss-1sp was about."""
         self.assertEqual(REFUSE, self.run_hook('cd sub ; git commit -m "x"'))
 
+    # -- newlines and subshells (found by review of this PR) ---------------
+
+    def test_a_newline_between_cd_and_commit_is_refused(self):
+        """A two-line command used to lex as one piece, hiding the commit."""
+        self.assertEqual(REFUSE, self.run_hook("cd sub\ngit commit -m x"))
+
+    def test_a_backslash_continuation_is_refused(self):
+        self.assertEqual(REFUSE, self.run_hook("cd sub && \\\n  git commit -m x"))
+
+    def test_a_subshell_does_not_hide_the_cd(self):
+        """`(` used to glue onto the piece, so the cd branch never matched."""
+        self.assertEqual(REFUSE, self.run_hook("(cd sub && git commit -m x)"))
+
+    def test_a_subshells_cd_does_not_outlive_it(self):
+        """The restore matters: without it this would be checked against sub.
+
+        The superproject is on a feature branch and sub is on master, so a
+        directory that leaked out of the subshell shows up as a refusal here.
+        """
+        self.assertEqual(ALLOW,
+                         self.run_hook("(cd sub && git status) && git commit -m x"))
+
     # -- fail-open, which is the design and must stay that way -------------
 
     def test_unparseable_command_is_allowed(self):
