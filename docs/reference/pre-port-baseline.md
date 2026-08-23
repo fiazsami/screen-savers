@@ -10,6 +10,15 @@ it was already broken.
 The *why* behind the port sequencing lives in [`doctrine.md`](doctrine.md); the
 harness that measures the code lives in [`tooling.md`](tooling.md).
 
+> **Which tree the line numbers refer to.** Citations describing the **as-found**
+> state — everything in the `ss-hx9` section below — are against hills
+> `a45c136`, the commit this superproject pinned when the savers were first
+> watched. They will not resolve against a tree carrying the fixes, because the
+> code they describe is the code that was replaced. Citations describing the
+> **fixed** state name their commit inline. Review raised this: a document
+> asserting "hills now renders" can sit in a superproject whose hills pointer
+> predates every fix, and a reader has no way to tell which tree to open.
+
 > **Status.** Observed from System Settings on macOS 26 on 2026-08-22 — the
 > first time anything in this project has verified a pixel. Everything the 398
 > characterization cases prove is about where a vertex *is*; none of it is about
@@ -67,12 +76,12 @@ were selected from System Settings → Screen Saver. Locally built bundles carry
 no `com.apple.quarantine` attribute, so no Gatekeeper assessment was involved.
 Screenshots are attached to the pull request that added this file.
 
-So the load-and-render claim holds for two of three, and the configure sheet
-holds for all three but not reliably. Both are tracked, and **neither is caused
+So all three load and render — two as found, hills after four fixes — and the
+configure sheet works for all three but not reliably. Both are tracked, and **neither is caused
 by the port, because the port has not happened** — that is the entire value of
 having captured this before opening a Metal branch.
 
-### hills renders nothing — `HillsScreensaverView.m:87`
+### hills renders nothing — `HillsScreensaverView.m:86`
 
 ```objc
 - (void)startAnimation
@@ -116,18 +125,31 @@ CGMainDisplayID=1
 the display was right. The result is not that the preference failed but that it
 **inverted**:
 
-| display | shipped code |
+| display | shipped code, **with System Settings on display 2** |
 | --- | --- |
 | 1 — **is** the main display | do **not** draw |
 | 2 — not the main display | **draw** |
 
-Hills drew on the secondary display and refused on the primary. That also
-explains the intermittency: move System Settings to the primary display and
-hills renders, because `mainScreen` follows the focus.
+**Read the column heading, not just the table.** This is one snapshot, not a
+fixed mapping. `mainScreen` follows keyboard focus, so the mapping inverts when
+the focused window moves: with System Settings on display 1 the saver on display
+1 draws, which is the *correct* outcome reached for the wrong reason. Calling
+the bug "inverted" — as an earlier draft did, without the qualifier — invites a
+post-port reader to diff against a fixed table and score a regression whenever
+focus happened to differ. The defect is that the answer depends on focus at all.
 
 The other two savers decide with `frameRect.origin == (0, 0)` and never call
-`mainScreen`, so they are unaffected — checked rather than assumed, since both
-ship the same preference.
+`mainScreen`, so they do not carry *this* bug.
+
+**That is not the same as their approach working, and an earlier draft implied
+it was.** Both twins default their equivalent preference to *off* — neither
+registers the key, so `boolForKey:` returns `NO` — which means the flag is
+computed once in `initWithFrame:` and never gates anything. Their rendering on
+both displays is evidence the gate is **disabled**, not evidence the technique
+is sound. `ss-0d8` says so explicitly and says not to cite them as a working
+reference; this document said "checked rather than assumed" in the same commit.
+Nobody has verified the twins' multi-display behaviour, because nothing has ever
+exercised it.
 
 Fixed in **hills#6**, though not on the first attempt. Comparing `NSScreenNumber`
 against `CGMainDisplayID()` asks the right question and is unreachable most of
@@ -208,9 +230,23 @@ parsing that looked like the fragile part is Windows-only.
 
 Two consequences, and the second is the one that matters for the port:
 
-**The good one.** `glGetString(GL_EXTENSIONS)` returns `NULL` in a core profile,
-which would have made that parser walk a null pointer. It cannot, because it is
-not compiled. One less way for the pre-port state to be quietly broken.
+**A hazard that is dormant rather than absent — and an earlier draft of this
+document got it wrong twice.** It said the `glGetString(GL_EXTENSIONS)` parser
+"cannot walk a null pointer, because it is not compiled". Both halves were
+false, and the table directly above refutes the first:
+
+- `queryExtension()` at `Hyperspace/extensions.cpp:39` **is compiled.** The
+  comment blocks are lines 26–35 and 65–92; line 39 sits between them. What is
+  not compiled is its only caller, `initExtensions()`.
+- `GL_EXTENSIONS` returns `NULL` in a **core** profile. All three savers run the
+  2.1 **compatibility** profile, so it returns a valid string and the stated
+  hazard never applied to the pre-port state at all.
+
+The real reason nothing dereferences null is that the function has no live
+caller — a different fact with a different lifetime. A port that adds a caller
+*and* moves to a core profile reintroduces the risk, and neither half is
+obviously connected to the other at the point where someone would make that
+change.
 
 **The load-bearing one.** `impSurface::impSurface()` sets `mUseVBOs = true`
 unconditionally, and the entire *"if any extensions were not found, fall back to
@@ -229,12 +265,18 @@ normally be. With no fallback and no status check there is no degraded path they
 could have silently fallen back *to*, so helios and hyperspace rendering means
 the real VBO and shader paths ran.
 
-It cuts the other way for hills, and is worth stating so nobody reads `ss-hx9`
-as a rendering failure: hills is black because `startAnimation` explicitly turns
-drawing off, not because anything in GL failed. Its renderer has not been
-exercised at all, in either direction. **hills therefore has no visual baseline**,
-and `ss-q1r` — the port that unblocks its coverage — is the one port with nothing
-to compare against.
+It reads differently for hills, and the distinction matters so nobody scores
+`ss-hx9` as a rendering failure: hills was black because `startAnimation`
+explicitly turned drawing off, not because anything in GL failed. So the
+as-found state tells you nothing about its renderer in either direction.
+
+**hills does now have a visual baseline** — the one recorded at the top of this
+document, after the four fixes. It is a younger baseline than the other two, and
+`ss-q1r` should compare against it rather than against the as-found state, which
+never drew a frame. An earlier draft of this section said hills had *no*
+baseline and that `ss-q1r` had nothing to compare against; that was written
+before the fixes landed and was left standing when the rest of the document was
+updated. Review caught the contradiction.
 
 Above all, the port must not assume a graceful-degradation path exists to
 preserve. There isn't one to preserve.
@@ -249,9 +291,16 @@ preserve. There isn't one to preserve.
 | signing | ad-hoc, `CODE_SIGN_IDENTITY = "-"`, `CODE_SIGN_STYLE = Manual`, empty team |
 | coverage | helios 96.5%, hyperspace 96.5%, hills 94.3% — all at baseline |
 
-hills reaches GL through `Source Code/HillsOpenGLView.h`, `SkyDome.m` and
-`HillsScreensaverView.m`, and is the only one of the three with a standalone
-`.app` target (`Hills Application`) that can be watched in a window.
+hills reaches GL through `HeightField.m`, `Scene.m`, `SkyDome.m`,
+`HillsOpenGLView.m` and `MainController.m` — the set `coverage/hills.json`'s
+`_scope` block already names — plus a single `gluLookAt` in `Camera.m`, which is
+the only hills file in the coverage denominator at all. `HillsScreensaverView.m`
+makes no GL calls; it owns the view and forwards to it. An earlier draft of this
+line named `HillsOpenGLView.h` (which contains no GL beyond the superclass) and
+`HillsScreensaverView.m`, and omitted four of the five files that do.
+
+hills is also the only one of the three with a standalone `.app` target
+(`Hills Application`) that can be watched in a window.
 
 ## What this baseline does not cover
 
