@@ -29,15 +29,22 @@ A status is keyed to a SHA, which buys three properties the comment never had:
                           waiting for status" and the merge button is disabled.
                           Absent and clean stop being indistinguishable, which
                           was the whole of the L2-F3 argument.
-  staleness is automatic  push a commit and the status is simply not present on
-                          the new head. No timestamp comparison, so no rebase
-                          or retarget can leave an old review looking current.
-                          CLAUDE.md advises a fresh look at a retargeted PR;
-                          this makes it a gate rather than advice.
+  a PUSH drops it         the status is not on the new head, so amended,
+                          rebased or extended work demands a fresh review with
+                          no timestamp comparison anywhere.
   the web UI is covered   the gate is GitHub's, not this repository's tooling,
                           so a merge made in a browser is subject to it. That
                           closes what CLAUDE.md calls its "known limit, and it
                           is a large one".
+
+WHAT THIS DOES **NOT** COVER, and the distinction is easy to get wrong -- an
+earlier draft of this file got it wrong. RETARGETING a pull request changes
+`baseRefName` and leaves the head commit alone, so the status survives it,
+green. That is precisely the FM2 shape: a PR reviewed against a stacked base
+is auto-retargeted onto the default branch when that base merges, and it
+arrives carrying a status earned against a different combination. A push
+invalidates review; a retarget does not. CLAUDE.md's advice to take a fresh
+look at a retargeted PR is therefore still advice, and still necessary.
 
 STATES, and they line up with the protocol in CLAUDE.md:
 
@@ -51,11 +58,13 @@ STATES, and they line up with the protocol in CLAUDE.md:
 KNOWN LIMIT, and it is the one that does not go away. The status is written
 with the author's own token, so an author who wants to can post `success`
 without running anything. This converts "forgot, and nothing could tell" into
-"fabricated deliberately, by a named creator at a recorded time" -- which
-`--audit` can inspect and a human can read. Ending self-attestation needs a
-second principal: the review running in Actions, where the token is minted
-server-side and cannot be produced locally. That is `ss-e4a`'s layer 4 and is
-deliberately not built here.
+"fabricated deliberately, by a named creator at a recorded time" -- which the
+`show` subcommand below prints, and which GitHub displays on the pull request.
+Note that `prflight --audit` does NOT inspect any of this: it reports stranded
+merges and pointer skew only, and an earlier draft of this file claimed
+otherwise. Ending self-attestation needs a second principal: the review running
+in Actions, where the token is minted server-side and cannot be produced
+locally. That is `ss-e4a`'s layer 4 and is deliberately not built here.
 
 Usage:
   review-status.py post <repo>#<n> --state <state> [--desc TEXT] [--url URL]
@@ -82,11 +91,25 @@ STATES = ("success", "failure", "pending")
 
 def run(args):
     """Return stdout, or None if the command failed. Never raises."""
+    out, _ = run_reporting(args)
+    return out
+
+
+def run_reporting(args):
+    """(stdout, error) -- the same, but keeping what the API said.
+
+    `post` needs this. The whole module docstring rests on telling a 403
+    ("must authenticate via a GitHub App", architectural) from a 422 (payload
+    rejected), and swallowing the response body is exactly what would make a
+    failure here undiagnosable.
+    """
     try:
         done = subprocess.run(args, capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return done.stdout if done.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, str(exc)
+    if done.returncode == 0:
+        return done.stdout, None
+    return None, (done.stderr or done.stdout or "").strip()
 
 
 def parse_target(target):
@@ -133,9 +156,12 @@ def post(repo, number, state, description, target_url):
     if target_url:
         args += ["-f", f"target_url={target_url}"]
 
-    if run(args) is None:
+    out, error = run_reporting(args)
+    if out is None:
         print(f"failed to post {state} to {repo}#{number} ({sha[:7]})",
               file=sys.stderr)
+        if error:
+            print(f"  {error}", file=sys.stderr)
         return 2
     print(f"{repo}#{number} {sha[:7]}: {CONTEXT} = {state}")
     return 0

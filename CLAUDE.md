@@ -95,9 +95,17 @@ obvious answer is not available:
 A status is keyed to a **SHA**, and that is what makes it work where the comment
 did not. Push a commit and the status is simply not on the new head, so the
 required context reverts to "Expected — waiting for status" and the merge button
-goes away. Absent is *blocking* rather than indistinguishable from clean, no
-timestamp reasoning is involved, and a rebase or retarget mechanically demands a
-fresh review — which this file previously could only advise.
+goes away. Absent is *blocking* rather than indistinguishable from clean, and no
+timestamp reasoning is involved anywhere.
+
+> **What a SHA-keyed status does not cover.** **Retargeting a pull request
+> changes its base and leaves its head alone**, so the status survives a
+> retarget, green. That is exactly the FM2 shape: a PR reviewed while stacked
+> on another branch gets auto-retargeted onto the default branch when that
+> branch merges, and arrives carrying a status earned against a different
+> combination. A *push* invalidates review; a *retarget* does not. So the
+> advice further down — take a fresh look at a retargeted PR — is still advice,
+> and still load-bearing.
 
 A locally-run pass also reads the diff, so it is **indifferent to draft state**.
 A review app with a `pull_request` trigger might skip drafts by default and
@@ -109,10 +117,12 @@ activity types do fire for drafts, so CI is unaffected either.
 > written with the author's own token, so an author who wants to can post
 > `success` without running anything. What changed is the failure mode, not its
 > possibility: "forgot, and nothing could tell" has become "fabricated
-> deliberately, by a named creator at a recorded time" — which `--audit` can
-> inspect and a human can read. Ending self-attestation needs a second
-> principal, meaning the review running in Actions where the token is minted
-> server-side. That is `ss-e4a` layer 4 and is deliberately not built.
+> deliberately, by a named creator at a recorded time" — which
+> `review-status.py show` prints and GitHub displays on the PR. Note that
+> `prflight --audit` does **not** inspect it; that check does stranded merges
+> and pointer skew only. Ending self-attestation needs a second principal,
+> meaning the review running in Actions where the token is minted server-side.
+> That is `ss-e4a` layer 4 and is deliberately not built.
 
 **Draft moves step 5 from remembered to visible.** An open PR says nothing about
 whether it has been reviewed, so "still being reviewed" and "ready for you" look
@@ -188,19 +198,39 @@ tools/review-status.py post screen-savers#44 --state success --url <findings>
 superproject was private on a free plan and both the branch-protection and the
 rulesets endpoints returned 403, so the whole of the above ran in the agent's
 tool calls and a pull request merged in the GitHub web UI passed none of it.
-A Pro upgrade removed that constraint. What holds now, in every repository:
+A Pro upgrade removed that constraint. What holds now, and **where** — the last
+column is the part to read, because the coverage is not uniform:
 
-| mechanism | covers | initiated how |
+| mechanism | covers | where |
 | --- | --- | --- |
-| `code-review` required context | merged-before-review (FM1) | any merge, including the web UI |
-| `gate` workflow → `tools/prflight.py --ci` | stacked-base collapse (FM2), pointer skew (FM3) | any merge, on every push to the PR |
-| branch auto-deletion | stacked-base retargeting | automatic |
+| `code-review` required context | merged-before-review (FM1) | **all four**, any merge including the web UI |
+| ruleset: PR required, no force-push, no deletion | commits landing straight on a default branch | **all four** |
+| `gate` workflow → `tools/prflight.py --ci` | stacked-base collapse (FM2), pointer skew (FM3) | **superproject only** |
+| `tests` workflow | build and signing regressions | the three submodules |
+| branch auto-deletion | stacked-base retargeting | all four, automatic |
 | `guard-pr-readiness.py` | `--draft` on create, prflight on ready | this harness only |
 
-The `gate` job deliberately does **not** check the review status. A workflow
-re-runs on push and *not* when a status is posted, so a job that demanded it
-would go red before the review and stay red after it. Review is a required
-context in its own right; `--ci` is `--assert` minus the two review predicates.
+> **The gap that leaves.** A *submodule* PR stacked on a base that already
+> merged — literally the `hills#7` case — has no server-side ordering check;
+> only `tests` and `code-review` run there. `twin_is_paired` is likewise not
+> enforced server-side anywhere. Locally, `tools/prflight.py --assert` still
+> covers both, and `guard-pr-readiness.py` still runs it on `gh pr ready`.
+
+`--ci` is `--assert` minus everything a workflow cannot honestly evaluate, and
+one fact explains all of it: **a workflow re-runs on push and on nothing else.**
+
+- The **review predicates** are dropped because a status posted after the run
+  does not re-trigger it — a job demanding the review would go red before
+  review and stay red after. Review is a required context in its own right.
+- The **soft pointer-lag rule** is dropped because lag is created by an
+  unrelated submodule PR merging, which pushes nothing to this PR. A red gate
+  for lag could not be cleared by acting on it, which is the cries-wolf
+  failure `prflight`'s own header warns about.
+
+What survives in CI is what a push determines. The hard pointer rule is also
+*monotonic* now: a commit on a submodule's `master` stays there, because the
+rulesets forbid force-pushing a default branch — so a green gate cannot go
+stale in the direction that matters.
 
 > **Known limit.** A ruleset binds the repository, not the person's judgment.
 > The `code-review` status is still author-posted (see the section above), and

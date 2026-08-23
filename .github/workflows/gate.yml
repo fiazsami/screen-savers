@@ -43,23 +43,25 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch the refs prflight resolves against
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          set -eux
-          # base_is_safe and pointer_is_sane name these explicitly. A shallow
-          # or absent ref makes merge-base answer "not an ancestor", which
-          # would fail the check for a reason that is not about the code.
-          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          if [ -n "${HEAD_REF:-}" ]; then
-            git fetch --no-tags origin \
-              "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
-          fi
+          set -eu
+          # `fetch-depth: 0` above already brings every superproject branch,
+          # which is what base_is_safe needs: it resolves origin/<baseRefName>,
+          # and for a STACKED pull request that is neither main nor the head.
+          # Do not trim fetch-depth to speed the checkout up without replacing
+          # that -- a missing ref makes merge-base answer "not an ancestor",
+          # and stacked PRs would start failing for a reason that is not about
+          # the code.
+          git fetch --no-tags --force origin \
+            "+refs/heads/*:refs/remotes/origin/*"
+          # Submodules are checked out detached at the pinned commit and have
+          # no origin/master, which pointer_is_sane names explicitly. Fetch it
+          # per submodule. --unshallow is deliberately not used: the clone is
+          # already complete, so it fails on every run and the noise makes a
+          # real failure hard to see.
           for sub in helios hills hyperspace; do
-            git -C "$sub" fetch --no-tags --unshallow origin \
-              +refs/heads/master:refs/remotes/origin/master || \
-            git -C "$sub" fetch --no-tags origin \
-              +refs/heads/master:refs/remotes/origin/master
+            git -C "$sub" fetch --no-tags --force origin \
+              "+refs/heads/master:refs/remotes/origin/master"
           done
 
       - name: Python suites

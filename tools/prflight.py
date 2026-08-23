@@ -24,7 +24,8 @@ Read-only. Shells out to `gh` and `git`; no other dependencies.
 
 Usage:
   prflight.py --assert <repo>#<n>   exit 2 with reasons if not ready to merge
-  prflight.py --ci     <repo>#<n>   the same, minus the two review predicates
+  prflight.py --ci     <repo>#<n>   the same, minus what a workflow cannot
+                                    honestly evaluate -- see check()
   prflight.py --plan                every open PR, in a safe merge order
   prflight.py --audit               merges that went wrong, and pointer skew
 """
@@ -54,6 +55,13 @@ REVIEW_MARKERS = re.compile(
 # match tools/review-status.py; renaming it in one place disables the gate in
 # every repository whose ruleset still names the old string.
 REVIEW_CONTEXT = "code-review"
+
+# Returned when the status LOOKUP failed -- no network, no token, rate limit,
+# unparseable response. Distinct from None, which means the lookup succeeded
+# and found no status. Collapsing the two tells an author whose `gh` call just
+# failed to go and run a review, which cannot clear the condition; the refusal
+# has to name the thing that is actually broken.
+UNREADABLE = object()
 
 
 def run(args, cwd=None):
@@ -141,13 +149,23 @@ def review_status_is_green(pr, status):
     merges left behind; this one reads the artifact the decision actually
     chose, and is what the branch rulesets require server-side.
 
-    Keyed to the head SHA rather than to a timestamp, so staleness needs no
-    reasoning: push a commit, and the status is simply not on the new head.
+    Keyed to the head SHA, so a PUSH drops the status and forces a fresh
+    review. Note the limit, because it is easy to overstate: retargeting a
+    pull request does NOT change its head, so the status survives a retarget
+    and that case stays a matter for human judgment.
+
+    `status` is UNREADABLE when the lookup itself failed, which is not the
+    same as the review not having run, and the two get different refusals.
 
     A MERGED pull request with no status is not flagged. Every merge before
-    this mechanism existed would fail otherwise, and `--audit` would report 86
+    this mechanism existed would fail otherwise, and the audit would report 86
     problems nobody can act on. `review_has_reported` is what judges those.
     """
+    if status is UNREADABLE:
+        return ("could not read the code-review status -- this is a failed "
+                "lookup, NOT a missing review; re-running review will not "
+                "clear it. Check `gh auth status` and the network")
+
     state = (status or {}).get("state")
 
     if state == "success":
@@ -225,7 +243,7 @@ def twin_is_paired(repo, pr):
     return None
 
 
-def pointer_is_sane(repo, pr):
+def pointer_is_sane(repo, pr, include_soft=True):
     """FM3. A superproject pointer must name a commit on the submodule's default
     branch, and should not lag it far.
 
@@ -266,6 +284,22 @@ def pointer_is_sane(repo, pr):
 
         # Soft, and only for a pin being moved: lag is what made #44 need
         # re-pointing three times.
+        #
+        # Dropped under `include_soft=False`, which is what `--ci` passes, and
+        # the reason is that CI cannot re-run when the fact changes. Lag is
+        # created by an unrelated submodule PR merging, which pushes nothing
+        # to THIS pull request -- so a red gate for lag would stay red until
+        # somebody pushed, blocking a pin that is perfectly valid. That is the
+        # cries-wolf failure this module's header warns about, and a check
+        # nobody can clear by acting on it is worse than no check.
+        #
+        # What remains in CI is the hard rule, and it is monotonic now: a
+        # commit on the submodule's master stays on it, because the rulesets
+        # forbid force-pushing a default branch. So a green gate cannot go
+        # stale in the direction that matters, even though the workflow does
+        # not re-run.
+        if not include_soft:
+            continue
         behind = run(["git", "rev-list", "--count",
                       f"{pinned}..origin/master"], cwd=path)
         if behind and behind.strip() != "0":
@@ -290,29 +324,37 @@ def review_status(repo, pr):
     """
     sha = pr.get("headRefOid")
     if not sha:
-        return None
+        return UNREADABLE
     out = run(["gh", "api", f"repos/{OWNER}/{repo}/commits/{sha}/status"])
     if out is None:
-        return None
+        return UNREADABLE
     try:
         combined = json.loads(out)
     except ValueError:
-        return None
+        return UNREADABLE
     for status in combined.get("statuses") or []:
         if status.get("context") == REVIEW_CONTEXT:
             return status
-    return None
+    return None  # the lookup worked; there is genuinely no status
 
 
-def check(repo, number, skip_review=False):
+def check(repo, number, ci=False):
     """(ok, reasons) for one pull request.
 
-    `skip_review` drops both review predicates, and exists for `--ci`. A
-    workflow re-runs on push and NOT when a status is posted, so a workflow
-    that demanded the review status would go red before the review and stay
-    red after it -- the deadlock `ss-e4a` warned about in its own terms.
-    Server-side, the review is a required context in its own right; this
-    check's job there is the ordering predicates.
+    `ci` drops every condition a workflow cannot honestly evaluate, and the
+    single reason behind all of them is that a workflow re-runs ON PUSH and on
+    nothing else:
+
+      the two review predicates  a status posted after the run does not
+                                 re-trigger it, so a job demanding the review
+                                 would go red before review and stay red
+                                 after. Review is its own required context.
+      the soft pointer-lag rule  lag is created by an unrelated submodule PR
+                                 merging, which pushes nothing here, so the
+                                 job could not clear it either.
+
+    What CI keeps is what a push determines: the hard pointer rule, the base's
+    ancestry, and twin pairing.
     """
     pr = fetch(repo, number)
     if pr is None:
@@ -321,9 +363,9 @@ def check(repo, number, skip_review=False):
     predicates = [
         base_is_safe(repo, pr),
         twin_is_paired(repo, pr),
-        pointer_is_sane(repo, pr),
+        pointer_is_sane(repo, pr, include_soft=not ci),
     ]
-    if not skip_review:
+    if not ci:
         predicates = [
             review_has_reported(pr),
             review_status_is_green(pr, review_status(repo, pr)),
@@ -335,7 +377,7 @@ def check(repo, number, skip_review=False):
 # --- modes ------------------------------------------------------------------
 
 
-def mode_assert(target, skip_review=False):
+def mode_assert(target, ci=False):
     if "#" not in target:
         print(f"usage: prflight.py --assert <repo>#<number>", file=sys.stderr)
         return 2
@@ -345,7 +387,7 @@ def mode_assert(target, skip_review=False):
               file=sys.stderr)
         return 2
 
-    ok, reasons = check(repo, number, skip_review=skip_review)
+    ok, reasons = check(repo, number, ci=ci)
     if ok:
         print(f"{target}: ready")
         return 0
@@ -448,7 +490,7 @@ def main(argv):
     if mode == "--assert" and len(argv) == 3:
         return mode_assert(argv[2])
     if mode == "--ci" and len(argv) == 3:
-        return mode_assert(argv[2], skip_review=True)
+        return mode_assert(argv[2], ci=True)
     if mode == "--plan":
         return mode_plan()
     if mode == "--audit":
