@@ -110,14 +110,64 @@ class ReadDistinguishesAbsentFromUnreadable(unittest.TestCase):
         self.assertIs(rs.read("screen-savers", 1), rs.UNREADABLE)
 
     def test_a_successful_lookup_with_no_status_is_absent(self):
-        rs.run = lambda args: '{"statuses": []}'
+        rs.run = lambda args: '[]'
         self.assertIsNone(rs.read("screen-savers", 1))
+
+    def test_a_non_list_response_is_unreadable(self):
+        """The combined endpoint returns an object; reading it here is a bug."""
+        rs.run = lambda args: '{"statuses": []}'
+        self.assertIs(rs.read("screen-savers", 1), rs.UNREADABLE)
 
     def test_the_matching_context_is_returned(self):
         rs.run = lambda args: (
-            '{"statuses": [{"context": "gate", "state": "success"},'
-            ' {"context": "code-review", "state": "failure"}]}')
+            '[{"context": "gate", "state": "success"},'
+            ' {"context": "code-review", "state": "failure"}]')
         self.assertEqual(rs.read("screen-savers", 1)["state"], "failure")
+
+    def test_the_newest_status_for_the_context_wins(self):
+        """The list is newest-first, so a re-post must shadow the first."""
+        rs.run = lambda args: (
+            '[{"context": "code-review", "state": "success"},'
+            ' {"context": "code-review", "state": "failure"}]')
+        self.assertEqual(rs.read("screen-savers", 1)["state"], "success")
+
+
+class ShowReportsTheCreator(unittest.TestCase):
+    """The creator is the whole of the self-attestation mitigation.
+
+    `show` read the COMBINED endpoint, which returns creator: null, and printed
+    "posted ... by None" -- making CLAUDE.md's claim false exactly where it was
+    being relied on. Pinned to the endpoint that actually carries it.
+    """
+
+    def setUp(self):
+        self._head, self._run = rs.head_sha, rs.run
+        rs.head_sha = lambda repo, number: "0" * 40
+        self.called = []
+
+        def fake(args):
+            self.called.append(args[-1])
+            return ('[{"context": "code-review", "state": "success",'
+                    ' "created_at": "2026-08-23T21:31:50Z",'
+                    ' "creator": {"login": "fiazsami"}}]')
+        rs.run = fake
+        self._stdout = sys.stdout
+        sys.stdout = io.StringIO()
+
+    def tearDown(self):
+        self.out = sys.stdout.getvalue()
+        sys.stdout = self._stdout
+        rs.head_sha, rs.run = self._head, self._run
+
+    def test_it_queries_the_list_endpoint_not_the_combined_one(self):
+        rs.show("screen-savers", 47)
+        self.assertTrue(self.called[0].endswith("/statuses"),
+                        f"queried {self.called[0]!r}, which omits the creator")
+
+    def test_the_login_is_printed(self):
+        rs.show("screen-savers", 47)
+        sys.stdout.getvalue()  # captured in tearDown
+        self.assertIn("fiazsami", sys.stdout.getvalue())
 
 
 if __name__ == "__main__":

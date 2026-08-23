@@ -194,21 +194,35 @@ def read(repo, number):
     facts and must not collapse: telling an author whose `gh` call just died
     that review has not reported sends them at a fix that cannot clear it.
 
-    Reads the combined status rather than listing every status, so the newest
-    one per context is what comes back -- posting twice does not leave the
-    first answer readable.
+    Reads `/statuses` (the list) rather than `/status` (the combined view),
+    and the difference is not cosmetic: **the combined view returns
+    `creator: null`**. Measured on this project's own PR #47 --
+
+        /commits/:sha/status    -> {"context": "code-review", "creator": null}
+        /commits/:sha/statuses  -> {"context": "code-review",
+                                    "creator": {"login": "fiazsami"}}
+
+    -- and the creator is the whole of what the self-attestation limit offers
+    in mitigation. `show` printed "posted ... by None" until this was found,
+    which made the claim in CLAUDE.md false at the point it was being relied
+    on. Found by running the tool, not by reading it.
+
+    The list is returned newest-first, so the first match for the context is
+    the current answer: posting twice does not leave the first one readable.
     """
     sha = head_sha(repo, number)
     if sha is None:
         return UNREADABLE
-    out = run(["gh", "api", f"repos/{OWNER}/{repo}/commits/{sha}/status"])
+    out = run(["gh", "api", f"repos/{OWNER}/{repo}/commits/{sha}/statuses"])
     if out is None:
         return UNREADABLE
     try:
-        combined = json.loads(out)
+        statuses = json.loads(out)
     except ValueError:
         return UNREADABLE
-    for status in combined.get("statuses") or []:
+    if not isinstance(statuses, list):
+        return UNREADABLE
+    for status in statuses:
         if status.get("context") == CONTEXT:
             return status
     return None
