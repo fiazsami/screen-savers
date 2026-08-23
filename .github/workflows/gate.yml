@@ -1,0 +1,78 @@
+# The superproject's first workflow, and the server-side half of `ss-e4a`.
+#
+# Until now this repository had no .github/ at all. Every merge-ordering rule
+# was checked in the agent's own tool calls, which CLAUDE.md recorded as a
+# "known limit, and it is a large one": a pull request merged in the GitHub web
+# UI passed none of them. It could not be fixed before -- the repository is
+# private and the protection endpoints returned 403 -- and a Pro upgrade is
+# what changed that.
+#
+# What runs here is `tools/prflight.py --ci`, which is the same code that
+# guards `gh pr ready` locally, minus the two review predicates. A workflow
+# re-runs on push and NOT when a commit status is posted, so a workflow that
+# demanded the review status would go red before the review and stay red after
+# it. Review is a required context in its own right -- `code-review`, posted by
+# tools/review-status.py -- and this job covers the ordering failures instead:
+#
+#   FM2  a stacked PR merging into a base that already merged (hills#7)
+#   FM3  a submodule pointer that is not on the submodule's default branch
+#
+# The job is named `gate` and the branch ruleset requires that exact string.
+# Renaming the job silently disables the gate, the same way the submodule
+# `tests` workflows warn about theirs.
+
+name: gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Fetch the refs prflight resolves against
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -eux
+          # base_is_safe and pointer_is_sane name these explicitly. A shallow
+          # or absent ref makes merge-base answer "not an ancestor", which
+          # would fail the check for a reason that is not about the code.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if [ -n "${HEAD_REF:-}" ]; then
+            git fetch --no-tags origin \
+              "+refs/heads/${HEAD_REF}:refs/remotes/origin/${HEAD_REF}"
+          fi
+          for sub in helios hills hyperspace; do
+            git -C "$sub" fetch --no-tags --unshallow origin \
+              +refs/heads/master:refs/remotes/origin/master || \
+            git -C "$sub" fetch --no-tags origin \
+              +refs/heads/master:refs/remotes/origin/master
+          done
+
+      - name: Python suites
+        run: |
+          set -eux
+          python3 -m unittest discover tools/tests
+          # Every hook, not just the changed one -- they share shellparse.py,
+          # and `ss-9fq` was one guard being fixed while its sibling kept the
+          # same bug.
+          for t in .claude/hooks/test_*.py; do python3 "$t"; done
+
+      - name: Merge-order predicates
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/prflight.py --ci screen-savers#${{ github.event.pull_request.number }}

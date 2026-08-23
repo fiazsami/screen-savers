@@ -230,3 +230,50 @@ class TwinIsPaired(unittest.TestCase):
     def test_the_superproject_has_no_twin(self):
         self.assertIsNone(prflight.twin_is_paired(
             prflight.SUPERPROJECT, pr(headRefName="chore/anything")))
+
+
+class ReviewStatusIsGreen(unittest.TestCase):
+    """The `ss-e4a` gate: a `code-review` status on the PR's head commit.
+
+    Pure by construction -- `check()` does the network call and hands the
+    result in -- so these need no fixture server and cannot fail on a flaky
+    network, which is the same bargain the predicates above make.
+    """
+
+    def test_success_passes(self):
+        self.assertIsNone(prflight.review_status_is_green(
+            pr(), {"state": "success"}))
+
+    def test_absent_on_an_open_pr_is_refused(self):
+        """The property the PR comment never had: absent is BLOCKING.
+
+        62 of 86 merged pull requests carried no review comment and nothing
+        stopped one of them, because absent and clean were indistinguishable.
+        """
+        reason = prflight.review_status_is_green(pr(), None)
+        self.assertIn("no code-review status", reason)
+
+    def test_failure_is_refused(self):
+        reason = prflight.review_status_is_green(pr(), {"state": "failure"})
+        self.assertIn("failure", reason)
+
+    def test_pending_is_refused(self):
+        """A half-finished review must not read as a clean one."""
+        reason = prflight.review_status_is_green(pr(), {"state": "pending"})
+        self.assertIn("pending", reason)
+
+    def test_absent_on_a_merged_pr_is_not_flagged(self):
+        """Every one of the 86 historical merges predates this mechanism.
+
+        Flagging them would make `--audit` report 86 problems nobody can act
+        on, and drown the ones that are real. `review_has_reported` is what
+        judges those.
+        """
+        self.assertIsNone(prflight.review_status_is_green(
+            pr(mergedAt="2026-08-22T20:11:00Z"), None))
+
+    def test_a_merged_pr_with_a_failure_status_is_still_flagged(self):
+        """Merged does not launder a red status that was there at merge time."""
+        reason = prflight.review_status_is_green(
+            pr(mergedAt="2026-08-22T20:11:00Z"), {"state": "failure"})
+        self.assertIn("failure", reason)

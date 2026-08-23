@@ -24,6 +24,7 @@ Read-only. Shells out to `gh` and `git`; no other dependencies.
 
 Usage:
   prflight.py --assert <repo>#<n>   exit 2 with reasons if not ready to merge
+  prflight.py --ci     <repo>#<n>   the same, minus the two review predicates
   prflight.py --plan                every open PR, in a safe merge order
   prflight.py --audit               merges that went wrong, and pointer skew
 """
@@ -48,6 +49,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # actually recurred -- no review comment at all, or one older than the code.
 REVIEW_MARKERS = re.compile(
     r"finding|review|verdict|CONFIRMED|PLAUSIBLE", re.IGNORECASE)
+
+# The artifact `ss-e4a` chose, and the context every ruleset requires. Must
+# match tools/review-status.py; renaming it in one place disables the gate in
+# every repository whose ruleset still names the old string.
+REVIEW_CONTEXT = "code-review"
 
 
 def run(args, cwd=None):
@@ -125,6 +131,35 @@ def review_has_reported(pr):
         return (f"review is older than the code: newest comment "
                 f"{newest_review}, newest commit {newest_commit}")
     return None
+
+
+def review_status_is_green(pr, status):
+    """The `ss-e4a` gate: a `code-review` commit status on THIS head commit.
+
+    Distinct from `review_has_reported` above, and both run. That one reads a
+    PR comment through a regex and is the only evidence the 86 historical
+    merges left behind; this one reads the artifact the decision actually
+    chose, and is what the branch rulesets require server-side.
+
+    Keyed to the head SHA rather than to a timestamp, so staleness needs no
+    reasoning: push a commit, and the status is simply not on the new head.
+
+    A MERGED pull request with no status is not flagged. Every merge before
+    this mechanism existed would fail otherwise, and `--audit` would report 86
+    problems nobody can act on. `review_has_reported` is what judges those.
+    """
+    state = (status or {}).get("state")
+
+    if state == "success":
+        return None
+    if state:
+        return (f"code-review status on the head commit is '{state}', "
+                f"not success")
+
+    if pr.get("mergedAt"):
+        return None  # predates the mechanism; the comment test judges it
+    return ("no code-review status on the head commit -- review has not "
+            "reported on this diff (tools/review-status.py post ...)")
 
 
 def base_is_safe(repo, pr):
@@ -239,7 +274,7 @@ def pointer_is_sane(repo, pr):
     return "; ".join(reasons) or None
 
 
-PR_FIELDS = ("number,title,state,isDraft,baseRefName,headRefName,"
+PR_FIELDS = ("number,title,state,isDraft,baseRefName,headRefName,headRefOid,"
              "comments,commits,mergeCommit,mergedAt,files")
 
 
@@ -247,25 +282,60 @@ def fetch(repo, number):
     return gh_json(repo, "pr", "view", str(number), "--json", PR_FIELDS)
 
 
-def check(repo, number):
-    """(ok, reasons) for one pull request."""
+def review_status(repo, pr):
+    """The `code-review` status on the PR's head commit, or None.
+
+    The network call lives here rather than inside the predicate so that
+    `review_status_is_green` stays pure and its tests need no fixture server.
+    """
+    sha = pr.get("headRefOid")
+    if not sha:
+        return None
+    out = run(["gh", "api", f"repos/{OWNER}/{repo}/commits/{sha}/status"])
+    if out is None:
+        return None
+    try:
+        combined = json.loads(out)
+    except ValueError:
+        return None
+    for status in combined.get("statuses") or []:
+        if status.get("context") == REVIEW_CONTEXT:
+            return status
+    return None
+
+
+def check(repo, number, skip_review=False):
+    """(ok, reasons) for one pull request.
+
+    `skip_review` drops both review predicates, and exists for `--ci`. A
+    workflow re-runs on push and NOT when a status is posted, so a workflow
+    that demanded the review status would go red before the review and stay
+    red after it -- the deadlock `ss-e4a` warned about in its own terms.
+    Server-side, the review is a required context in its own right; this
+    check's job there is the ordering predicates.
+    """
     pr = fetch(repo, number)
     if pr is None:
         return False, [f"could not read {repo}#{number}"]
 
-    reasons = [reason for reason in (
-        review_has_reported(pr),
+    predicates = [
         base_is_safe(repo, pr),
         twin_is_paired(repo, pr),
         pointer_is_sane(repo, pr),
-    ) if reason]
-    return not reasons, reasons
+    ]
+    if not skip_review:
+        predicates = [
+            review_has_reported(pr),
+            review_status_is_green(pr, review_status(repo, pr)),
+        ] + predicates
+
+    return not any(predicates), [r for r in predicates if r]
 
 
 # --- modes ------------------------------------------------------------------
 
 
-def mode_assert(target):
+def mode_assert(target, skip_review=False):
     if "#" not in target:
         print(f"usage: prflight.py --assert <repo>#<number>", file=sys.stderr)
         return 2
@@ -275,7 +345,7 @@ def mode_assert(target):
               file=sys.stderr)
         return 2
 
-    ok, reasons = check(repo, number)
+    ok, reasons = check(repo, number, skip_review=skip_review)
     if ok:
         print(f"{target}: ready")
         return 0
@@ -377,6 +447,8 @@ def main(argv):
     mode = argv[1]
     if mode == "--assert" and len(argv) == 3:
         return mode_assert(argv[2])
+    if mode == "--ci" and len(argv) == 3:
+        return mode_assert(argv[2], skip_review=True)
     if mode == "--plan":
         return mode_plan()
     if mode == "--audit":

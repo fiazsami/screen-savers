@@ -73,37 +73,64 @@ Step 5 is not optional. Do not merge a PR that review has not reported on.
 **What provides step 5, precisely.** Not a GitHub app. Checked across all four
 repositories and every pull request in them: **zero** reviews have ever been
 posted by anything, and no review workflow exists in any of the four. What
-satisfies step 5 is an agent running `/code-review` against the diff and posting
-its findings as a PR comment.
+satisfies step 5 is an agent running `/code-review` against the diff, posting
+its findings as a PR comment, and then recording that it ran:
 
-That matters here for one reason: a locally-run pass reads the diff, so it is
-**indifferent to draft state**. A review app with a `pull_request` trigger might
-skip drafts by default and would deadlock the rule below; this cannot, because
-there is no trigger to skip. The submodule `tests` workflow uses bare
-`on: pull_request`, whose default activity types do fire for drafts, so CI is
-unaffected either.
+```bash
+tools/review-status.py post screen-savers#47 --state success --url <comment link>
+tools/review-status.py show screen-savers#47
+```
 
-> **Known limit.** "Review has reported" is therefore a claim the author makes
-> about work the author commissioned, with nothing server-side able to
-> contradict it. That is `I5` / `ss-e4a`, and the branch protection on the three
-> submodules requires a passing `tests` check and **zero** approving reviews.
+That command writes a **commit status** named `code-review` onto the pull
+request's head commit, and every default branch now requires that context. It
+is the artifact `ss-e4a` chose, and the reasoning is worth keeping because the
+obvious answer is not available:
+
+| candidate | why not |
+| --- | --- |
+| a check run | `POST /check-runs` returns **403, "You must authenticate via a GitHub App"**. Measured twice, across a `gh auth` refresh, so it is architectural rather than a missing scope. `ss-e4a` had named this the only artifact that could work unattended; it cannot be written from a local pass at all |
+| an approving review | an author cannot approve their own PR, so requiring one parks every PR at `BLOCKED`. All four repos therefore require **zero** approving reviews, deliberately |
+| a PR comment alone | what the project did before. Read by a regex shape test that cannot tell a review from any comment containing the word "review", and invisible to GitHub's merge gate |
+
+A status is keyed to a **SHA**, and that is what makes it work where the comment
+did not. Push a commit and the status is simply not on the new head, so the
+required context reverts to "Expected — waiting for status" and the merge button
+goes away. Absent is *blocking* rather than indistinguishable from clean, no
+timestamp reasoning is involved, and a rebase or retarget mechanically demands a
+fresh review — which this file previously could only advise.
+
+A locally-run pass also reads the diff, so it is **indifferent to draft state**.
+A review app with a `pull_request` trigger might skip drafts by default and
+would deadlock the rule below; this cannot, because there is no trigger to skip.
+The submodule `tests` workflow uses bare `on: pull_request`, whose default
+activity types do fire for drafts, so CI is unaffected either.
+
+> **Known limit, and it is the one that does not go away.** The status is
+> written with the author's own token, so an author who wants to can post
+> `success` without running anything. What changed is the failure mode, not its
+> possibility: "forgot, and nothing could tell" has become "fabricated
+> deliberately, by a named creator at a recorded time" — which `--audit` can
+> inspect and a human can read. Ending self-attestation needs a second
+> principal, meaning the review running in Actions where the token is minted
+> server-side. That is `ss-e4a` layer 4 and is deliberately not built.
 
 **Draft moves step 5 from remembered to visible.** An open PR says nothing about
 whether it has been reviewed, so "still being reviewed" and "ready for you" look
 identical to whoever is watching the PR list. Opening as a draft makes the
 difference visible where the merge decision is actually made.
 
-> **Known limit — half of this is enforced and half is not.** GitHub refuses to
-> merge a draft, so once a PR *is* a draft the rule holds without anyone
-> remembering it. Nothing makes it one: `.claude/hooks/guard-default-branch.py`
-> yields only invocations whose `argv[0]` is `git`, so no `gh` command reaches
-> it at all. (Its header does discuss `gh pr merge` — rejected as unblockable
-> in `ss-nla` — but `gh pr create` is never named there; the gap is the
-> parser's, not a stated exclusion.) An author who forgets `--draft` produces a
-> PR indistinguishable from a reviewed one, which is the precise failure this
-> section exists to prevent. `ss-2br` proposes a hook, and also argues it may
-> not be worth building; until then the first half is a convention like any
-> other.
+Both halves of this are now enforced. GitHub refuses to merge a draft, so once
+a PR *is* a draft the rule holds without anyone remembering it — and
+`.claude/hooks/guard-pr-readiness.py` refuses a `gh pr create` that omits
+`--draft`, which is what makes it one. That hook also refuses `gh pr ready`
+when `tools/prflight.py` says the PR is not ready, so the two ends of the draft
+window are guarded by the same file.
+
+> **Known limit.** The hook sees this harness's tool calls and nothing else. A
+> pull request opened in the GitHub web UI, or from a terminal outside the
+> session, reaches neither end of it. That is why the `code-review` context and
+> the `gate` workflow matter: those are GitHub's, and they apply to a merge
+> however it is initiated.
 
 The protocol, in one line each:
 
@@ -149,21 +176,37 @@ somebody has to notice.
 
 ```bash
 tools/prflight.py --assert screen-savers#44   # is this one ready?
+tools/prflight.py --ci     screen-savers#44   # the same, minus review -- CI uses this
 tools/prflight.py --plan                      # every open PR, in a safe order
 tools/prflight.py --audit                     # stranded merges, pointer skew
+
+tools/review-status.py show screen-savers#44  # has review reported on this diff?
+tools/review-status.py post screen-savers#44 --state success --url <findings>
 ```
 
-> **Known limit, and it is a large one.** These checks run in the agent's tool
-> calls. **A pull request merged in the GitHub web UI passes none of them.**
-> The superproject can have neither branch protection nor a required check —
-> it is private on a free plan, and the API returns 403 — so the only
-> server-side mechanism in play is branch auto-deletion, which covers the
-> stacked-base case and nothing else. Merged-before-review and pointer skew
-> remain convention when a human merges directly, plus whatever `--audit`
-> catches afterwards.
->
-> A retargeted pull request is also a diff nobody reviewed in that
-> combination. Worth a fresh look before merging it.
+**These checks now also run server-side, which they could not before.** The
+superproject was private on a free plan and both the branch-protection and the
+rulesets endpoints returned 403, so the whole of the above ran in the agent's
+tool calls and a pull request merged in the GitHub web UI passed none of it.
+A Pro upgrade removed that constraint. What holds now, in every repository:
+
+| mechanism | covers | initiated how |
+| --- | --- | --- |
+| `code-review` required context | merged-before-review (FM1) | any merge, including the web UI |
+| `gate` workflow → `tools/prflight.py --ci` | stacked-base collapse (FM2), pointer skew (FM3) | any merge, on every push to the PR |
+| branch auto-deletion | stacked-base retargeting | automatic |
+| `guard-pr-readiness.py` | `--draft` on create, prflight on ready | this harness only |
+
+The `gate` job deliberately does **not** check the review status. A workflow
+re-runs on push and *not* when a status is posted, so a job that demanded it
+would go red before the review and stay red after it. Review is a required
+context in its own right; `--ci` is `--assert` minus the two review predicates.
+
+> **Known limit.** A ruleset binds the repository, not the person's judgment.
+> The `code-review` status is still author-posted (see the section above), and
+> a retargeted pull request is a diff nobody reviewed in that combination —
+> though the head SHA changes when it is retargeted, so the status is dropped
+> and a fresh one is required. That much is now mechanical rather than advisory.
 
 ### Submodules
 
@@ -321,6 +364,10 @@ python3 .claude/hooks/test_guard_signing_identity.py   # change any of them
 python3 .claude/hooks/test_guard_pr_readiness.py
 python3 -m unittest discover tools/tests               # and tools/ has some now
 ```
+
+The last two also run in CI now, in the superproject's `gate` workflow — which
+is the first workflow this repository has ever had. Before it, `tools/` and
+`.claude/hooks/` were verified only by whoever remembered to run them.
 
 Note the two are independent. `tools/coverage.sh` drives `xcrun clang` directly
 and never opens an Xcode project, so it stayed green through a period when none
