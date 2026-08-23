@@ -378,8 +378,9 @@ def check(repo, number, ci=False):
 
 
 def mode_assert(target, ci=False):
+    flag = "--ci" if ci else "--assert"
     if "#" not in target:
-        print(f"usage: prflight.py --assert <repo>#<number>", file=sys.stderr)
+        print(f"usage: prflight.py {flag} <repo>#<number>", file=sys.stderr)
         return 2
     repo, number = target.split("#", 1)
     if repo not in REPOS:

@@ -234,9 +234,11 @@ stale in the direction that matters.
 
 > **Known limit.** A ruleset binds the repository, not the person's judgment.
 > The `code-review` status is still author-posted (see the section above), and
-> a retargeted pull request is a diff nobody reviewed in that combination —
-> though the head SHA changes when it is retargeted, so the status is dropped
-> and a fresh one is required. That much is now mechanical rather than advisory.
+> **a retargeted pull request is a diff nobody reviewed in that combination**.
+> Nothing catches that: retargeting leaves the head commit alone, so the status
+> survives it green — see the block above on what a SHA-keyed status does not
+> cover. Re-read a retargeted PR before merging it; that instruction is
+> load-bearing, not a formality.
 
 ### Submodules
 

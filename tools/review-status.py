@@ -73,20 +73,36 @@ Usage:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# One definition, imported rather than repeated. The context string and the
+# sentinel both used to exist here AND in prflight, each with a comment saying
+# "renaming this in one place disables the gate" -- which is a warning where an
+# import is a guarantee. The failure that warning describes is silent and
+# total: rename one copy, and review posts under a name the checks never look
+# for, so every PR reports "no code-review status" forever while the ruleset
+# waits on a context nobody writes.
+#
+# The dependency only runs this way. prflight imports nothing from here, and
+# it could not -- the hyphen in this filename makes it unimportable.
+from prflight import REVIEW_CONTEXT as CONTEXT, UNREADABLE  # noqa: E402
 
 OWNER = "fiazsami"
 SUPERPROJECT = "screen-savers"
 SUBMODULES = ("helios", "hills", "hyperspace")
 REPOS = (SUPERPROJECT,) + SUBMODULES
 
-# The required-check context. Changing this string silently disables the gate
-# in every repository whose ruleset still names the old one, exactly the way
-# the submodule workflows warn about renaming their `tests` job.
-CONTEXT = "code-review"
-
 STATES = ("success", "failure", "pending")
+
+# GitHub truncates a commit status description at 140 characters and rejects
+# a longer one with a 422. A review pass handing its findings summary straight
+# to --desc would post nothing at all and leave the PR blocked, so cap rather
+# than fail.
+DESCRIPTION_LIMIT = 140
 
 
 def run(args):
@@ -148,6 +164,9 @@ def post(repo, number, state, description, target_url):
               file=sys.stderr)
         return 2
 
+    if len(description) > DESCRIPTION_LIMIT:
+        description = description[:DESCRIPTION_LIMIT - 1] + "…"
+
     args = ["gh", "api", "-X", "POST",
             f"repos/{OWNER}/{repo}/statuses/{sha}",
             "-f", f"state={state}",
@@ -168,7 +187,12 @@ def post(repo, number, state, description, target_url):
 
 
 def read(repo, number):
-    """The current `code-review` status on the head SHA, or None.
+    """The current `code-review` status on the head SHA.
+
+    Returns the status, None when the lookup succeeded and found none, or
+    UNREADABLE when the lookup itself failed. Those last two are different
+    facts and must not collapse: telling an author whose `gh` call just died
+    that review has not reported sends them at a fix that cannot clear it.
 
     Reads the combined status rather than listing every status, so the newest
     one per context is what comes back -- posting twice does not leave the
@@ -176,14 +200,14 @@ def read(repo, number):
     """
     sha = head_sha(repo, number)
     if sha is None:
-        return None
+        return UNREADABLE
     out = run(["gh", "api", f"repos/{OWNER}/{repo}/commits/{sha}/status"])
     if out is None:
-        return None
+        return UNREADABLE
     try:
         combined = json.loads(out)
     except ValueError:
-        return None
+        return UNREADABLE
     for status in combined.get("statuses") or []:
         if status.get("context") == CONTEXT:
             return status
@@ -192,6 +216,12 @@ def read(repo, number):
 
 def show(repo, number):
     status = read(repo, number)
+    if status is UNREADABLE:
+        print(f"{repo}#{number}: could not read the {CONTEXT} status. This is "
+              f"a failed lookup, NOT a missing review -- running a review will "
+              f"not change it. Check `gh auth status` and the network.",
+              file=sys.stderr)
+        return 2
     if status is None:
         print(f"{repo}#{number}: no {CONTEXT} status on the head commit "
               f"-- review has not reported on this diff")

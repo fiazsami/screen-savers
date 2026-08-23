@@ -25,6 +25,23 @@ name: gate
 
 on:
   pull_request:
+    # `edited` is the one that is not a default, and it is here for a reason
+    # the rest of this file argues at length: a workflow re-runs on push and on
+    # nothing else, so anything it checks that can change WITHOUT a push needs
+    # a trigger of its own.
+    #
+    # `base_is_safe` is exactly that. Whether origin/<base> has reached main
+    # changes when ANOTHER pull request merges. A stacked PR is legitimately
+    # red while its base is open; when the base merges, branch auto-deletion
+    # retargets this one onto main -- and a base change fires `edited`, not
+    # `synchronize`, which is head-branch-only. Without `edited` the required
+    # `gate` context could stay red with nothing anyone does on the PR able to
+    # clear it, which is the same unclearable-check failure the soft pointer
+    # lag rule was dropped from --ci to avoid.
+    #
+    # Cost is a re-run when a title or body is edited. That is a 21-second
+    # ubuntu job, which is worth not deadlocking a stacked PR over.
+    types: [opened, reopened, synchronize, edited, ready_for_review]
   push:
     branches: [main]
 
