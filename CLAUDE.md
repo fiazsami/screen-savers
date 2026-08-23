@@ -126,6 +126,45 @@ PR pair each time. The author's sequencing was the defect both times, which is
 precisely why the fix is a mechanism rather than a resolution to be more
 careful.
 
+### Merge order
+
+Four ways a merge has gone wrong here, all of them measured rather than
+imagined. A pass over all 86 merged pull requests in the four repositories
+found 13 preemptive merges (`ss-ah3`), and **62 of those 86 carried no review
+comment at all** — against the rule three sections above that says review is
+not optional.
+
+| | what happened | what covers it now |
+| --- | --- | --- |
+| **Merged before review** | `#23` merged at 20:27:48; its only review comment was posted 81 seconds *later*, its findings were real, and they needed follow-up PR `#24` | `tools/prflight.py` check 1, enforced on `gh pr ready` by `guard-pr-readiness.py` |
+| **Stacked base collapse** | `hills#7` merged into `fix/render-on-modern-host` ten seconds after that branch merged to `master`. A reviewed fix sat off `master` for **17h40m** and was found by accident | branch auto-deletion, now on in all four repos — GitHub retargets the child automatically. Plus check 2, and `--audit` |
+| **Twin / pointer skew** | the signing trio merged 23h34m before the pointer bump that pins it, and `#44` had to be re-pointed three times | checks 3 and 4 |
+| **Generated-file contention** | 41 of 42 superproject branches touched `.beads/*.jsonl`; `#40` was closed unmerged after two full review rounds because it could not be brought up to date | removed, not guarded — the exports are untracked |
+
+Ordering used to be communicated in prose and lost at merge time. `#36`'s body
+literally said *"Merge #35 first and this retargets cleanly"*; `#35` merged and
+`#36` was closed unmerged 49 seconds later. Stacked pull requests are still
+allowed, but the ordering is now GitHub's problem rather than a sentence
+somebody has to notice.
+
+```bash
+tools/prflight.py --assert screen-savers#44   # is this one ready?
+tools/prflight.py --plan                      # every open PR, in a safe order
+tools/prflight.py --audit                     # stranded merges, pointer skew
+```
+
+> **Known limit, and it is a large one.** These checks run in the agent's tool
+> calls. **A pull request merged in the GitHub web UI passes none of them.**
+> The superproject can have neither branch protection nor a required check —
+> it is private on a free plan, and the API returns 403 — so the only
+> server-side mechanism in play is branch auto-deletion, which covers the
+> stacked-base case and nothing else. Merged-before-review and pointer skew
+> remain convention when a human merges directly, plus whatever `--audit`
+> catches afterwards.
+>
+> A retargeted pull request is also a diff nobody reviewed in that
+> combination. Worth a fresh look before merging it.
+
 ### Submodules
 
 A change inside a submodule is **two** pull requests, in order:
@@ -156,6 +195,15 @@ bd close <id>         # Complete work
 - Run `bd prime` for detailed command reference and session close protocol
 - Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
 
+**The exports are not tracked, and that is deliberate.** `.beads/issues.jsonl`
+and `.beads/interactions.jsonl` are gitignored. `bd` rewrites them on every
+mutation — create, update, close, dep — so committing them put a machine-written
+file on every branch, and 41 of the 42 superproject pull requests collided on
+it. `#40` was closed unmerged after two full review rounds because of it. There
+is no merge of two exports more correct than re-exporting from the database, so
+they are not merged. Use `bd` to read issues; `bd export -o <path>` if you want
+a file.
+
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
 
 ## Session Completion
@@ -173,9 +221,12 @@ bd close <id>         # Complete work
    git push
    git status  # MUST show "up to date with origin"
    ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+5. **Check nothing was stranded** - `tools/prflight.py --audit`. It reports a
+   merge that never reached its default branch, and a superproject pointer
+   lagging a submodule. `hills#7` was both, and hid for 17h40m.
+6. **Clean up** - Clear stashes, prune remote branches
+7. **Verify** - All changes committed AND pushed
+8. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 
@@ -264,9 +315,11 @@ xcodebuild -project hyperspace/Hyperspace.xcodeproj -target Hyperspace  -configu
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Screensaver"   -configuration Release build
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Application"   -configuration Release build
 
-python3 .claude/hooks/test_shellparse.py               # the hooks have tests; run
-python3 .claude/hooks/test_guard_default_branch.py     # all three if you change
-python3 .claude/hooks/test_guard_signing_identity.py   # any of them
+python3 .claude/hooks/test_shellparse.py               # the hooks have tests;
+python3 .claude/hooks/test_guard_default_branch.py     # run all four if you
+python3 .claude/hooks/test_guard_signing_identity.py   # change any of them
+python3 .claude/hooks/test_guard_pr_readiness.py
+python3 -m unittest discover tools/tests               # and tools/ has some now
 ```
 
 Note the two are independent. `tools/coverage.sh` drives `xcrun clang` directly

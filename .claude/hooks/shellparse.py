@@ -226,3 +226,39 @@ def parse(command, cwd):
                 index += 1
         if index < len(words):
             yield directory, repo, words[index], words[index + 1:]
+
+
+def commands(command, cwd):
+    """Yield (directory, words) for EVERY command in the line, not just git.
+
+    A sibling of `parse`, deliberately not a generalisation of it. `parse` stays
+    byte-identical, because two guards and 62 tests depend on its exact shape,
+    and `ss-nla` rejected reworking it on the grounds that widening the git
+    filter would be a rewrite rather than a clause. This is the clause: the
+    lexing, the separators, the `cd` tracking and the subshell scoping are
+    shared, and only the final filter differs.
+
+    It exists because `parse` drops anything whose argv[0] is not `git`
+    (see the filter above), so no `gh` command has ever reached a guard --
+    a gap CLAUDE.md records honestly and which let every pull request
+    operation run unchecked.
+    """
+    directory = cwd
+    scopes = []
+    for words in segments(command):
+        if not words:
+            continue
+
+        if words[0] == SUBSHELL_OPEN:
+            scopes.append(directory)
+            continue
+        if words[0] == SUBSHELL_CLOSE:
+            if scopes:
+                directory = scopes.pop()
+            continue
+
+        if words[0] == "cd":
+            directory = apply_cd(directory, words[1:])
+            continue
+
+        yield directory, words

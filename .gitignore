@@ -22,3 +22,16 @@ tools/__pycache__/
 # tracked: docs/ is the knowledge base, and anything worth keeping graduates
 # into it as a lesson or a reference document.
 notes/
+
+# The beads exports. Derived data, not the store: issues live in the embedded
+# Dolt DB under .beads/ and sync over refs/dolt/data on the git remote, which is
+# where a fresh clone gets them from. `bd` rewrites these files on every
+# mutation -- create, update, close, dep -- so committing them made every branch
+# collide with every other branch. 41 of the 42 superproject pull requests
+# touched them, and screen-savers#40 was closed unmerged after two full review
+# rounds because it could not be brought up to date.
+#
+# Untracked rather than merged: there is no merge of two exports that is more
+# correct than re-exporting from the database.
+.beads/issues.jsonl
+.beads/interactions.jsonl
