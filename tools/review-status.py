@@ -146,6 +146,15 @@ def head_sha(repo, number):
     Deliberately not the merge commit or the base. A status on anything else
     would not be the thing GitHub evaluates for the merge gate, and would go
     stale without the branch moving.
+
+    RACY FOR A FEW SECONDS AFTER A PUSH, and it is worth knowing because the
+    stale answer is the reassuring one. GitHub takes a moment to move the
+    pull request's headRefOid, so `show` run immediately after `git push` can
+    read the PREVIOUS head and report the status that was posted against it --
+    observed on #47, reporting success against a commit that had just been
+    superseded. The ruleset evaluates the true head server-side, so this can
+    never let a bad merge through; it can only mislead a person into thinking
+    the PR is ready. Re-run it a few seconds later.
     """
     out = run(["gh", "pr", "view", str(number), "-R", f"{OWNER}/{repo}",
                "--json", "headRefOid"])
