@@ -19,8 +19,8 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 168,
-    "needs refactoring first": 5,
+    "testable as-is": 169,
+    "needs refactoring first": 4,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
   },
@@ -32,10 +32,15 @@
       "line": 38,
       "regions": 56,
       "uncovered_regions": 0,
-      "verdict": "B",
+      "verdict": "A",
       "rule": "b:api-coupled",
-      "reason": "calls glXSwapBuffers -- needs a context, or the call lifted out behind a seam",
-      "set_by": "rule"
+      "reason": "False positive of b:api-coupled (ss-5h6): the only GL calls are upstream's wglSwapLayerBuffers under #ifdef WIN32 and glXSwapBuffers under #ifdef RS_XSCREENSAVER, never compiled on macOS. Rendering goes through HSRenderer, and the constructor is 100% covered by tests/test_textures.cpp.",
+      "set_by": "human",
+      "rule_would_say": {
+        "verdict": "B",
+        "rule": "b:api-coupled"
+      },
+      "decided": "2026-11-15"
     },
     {
       "id": "Hyperspace/causticTextures.cpp::causticTextures::makeTrigAltitudes()",
