@@ -1,12 +1,12 @@
 # screen-savers: an agent harness for legacy-code modernisation
 
-This repository holds the harness, coverage data and engineering record behind the modernisation of three legacy macOS screen savers: [Hyperspace](https://github.com/fiazsami/hyperspace), [Helios](https://github.com/fiazsami/helios) and [Hills](https://github.com/fiazsami/hills). They are written in C++, Objective-C and OpenGL. The harness is a team of Claude Code agents with fixed roles, guard hooks with their own tests, a line-coverage ratchet, and an agent code review on the way to every merge.
+This repository holds the harness, coverage data and engineering record behind the modernisation of three legacy macOS screen savers: [Hyperspace](https://github.com/fiazsami/hyperspace), [Helios](https://github.com/fiazsami/helios) and [Hills](https://github.com/fiazsami/hills). They are written in C++, Objective-C and OpenGL. The harness is a team of Claude Code agents with fixed roles, guard hooks with their own tests, a line-coverage ratchet, and a pull request for every change.
 
 Over three days (21–23 August 2026) it produced:
-- **292 commits and 88 merged pull requests** across the four repositories, with no commit made directly on a default branch;
+- **204 commits, merged through 88 pull requests** across the four repositories; after the first hour of setup, nothing was committed directly to a default branch;
 - line coverage of the shared C++ core in Hyperspace and Helios from **5.4% to 96.5%** (2,388 lines, [baselines](coverage/));
-- **398 test cases** in the three savers and **132 tests** for the harness itself;
-- **nine production defects fixed**, each with a test that fails without the fix, checked by deliberately re-introducing the bug;
+- test suites of **189, 198 and 11 cases** in the three savers (the Hyperspace and Helios suites overlap, because they test the same core), and **132 tests** for the harness itself;
+- **eight defects fixed**: five latent ones in the shared core, found while writing tests, and three visible ones in how Hills behaves inside the macOS screen-saver host. Commit messages record mutation checks, including the ones where a mutant survived;
 - a move from macOS 10.9 to **macOS 26**, with CI on GitHub Actions for every saver.
 
 ## How it works
@@ -26,17 +26,17 @@ flowchart LR
 
 | Agent | Role |
 | --- | --- |
-| [`coverage-runner`](.claude/agents/coverage-runner.md) | Runs the coverage gate and returns a gap summary; read-only |
+| [`coverage-runner`](.claude/agents/coverage-runner.md) | Runs the coverage gate and returns a gap summary. It is meant to be read-only; [L4](docs/lessons/2026-08-21-first-coverage-loop-run.md) records a run where it wrote files anyway |
 | [`triager`](.claude/agents/triager.md) | Sorts uncovered functions into testable, refactor-first and not worth testing, and writes the dispatch queue |
 | [`test-writer`](.claude/agents/test-writer.md) | Writes tests for one topic, then shows they fail when the code is broken |
 | [`refactorer`](.claude/agents/refactorer.md) | Makes one blocked function testable without changing behaviour, with characterisation tests first |
-| [`verifier`](.claude/agents/verifier.md) | Independently re-runs the gate, reads every diff, and grades whether the new tests can actually fail |
+| [`verifier`](.claude/agents/verifier.md) | Re-runs the gate from a clean state, reads every diff, and grades whether the new tests can actually fail |
 
-The loop stops at the threshold, when the gain per iteration falls below a floor, or after three iterations.
+The loop is designed to stop at the threshold, when the gain per iteration falls below a floor, or after three iterations. In practice the floor never triggered, and the step from 63.6% to 83.8% was driven by hand ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)).
 
 ## Guardrails
 
-Rules an agent is likely to break are enforced by `PreToolUse` hooks ([`.claude/hooks/`](.claude/hooks/)), not just written down. Each hook has its own test suite.
+Rules an agent is likely to break are enforced by `PreToolUse` hooks ([`.claude/hooks/`](.claude/hooks/)), not just written down. The three guards and their shared parser have test suites. The hooks fail open by design: they are a backstop for honest mistakes, not a security boundary.
 
 | Hook | Refuses | Tests |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ Rules an agent is likely to break are enforced by `PreToolUse` hooks ([`.claude/
 | --- | --- |
 | Start | 5.43% (129 / 2,375 lines) |
 | First loop runs ([L4](docs/lessons/2026-08-21-first-coverage-loop-run.md), [L5](docs/lessons/2026-08-22-second-coverage-loop-run.md)) | 20.89% → 63.5% |
-| `impCubeVolume` unblocked ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)) | 63.59% → 83.79% |
+| `impCubeVolume` unblocked, by hand ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)) | 63.59% → 83.79% |
 | Final | 96.52% (2,305 / 2,388 lines) |
 
 ## What went wrong, and what changed because of it
@@ -102,7 +102,7 @@ python3 -m unittest discover tools/tests
 ## Credits and licence
 
 The tooling and documentation here are MIT-licensed ([`LICENSE`](LICENSE)), © 2026 Fiaz Sami. The savers keep their own licences in their repositories:
-- Hyperspace and Helios: GPL-2.0, © Terence M. Welsh, macOS port by Nick Zitzmann;
+- Hyperspace and Helios: GPL-2.0 or later (core libraries LGPL-2.1 or later), © Terence M. Welsh, macOS port by Nick Zitzmann;
 - Hills: GPL-2.0 or later, © Chris Kent.
 
 The work was directed by [Fiaz Sami](https://github.com/fiazsami) and carried out by Claude Code agents.
