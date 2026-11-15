@@ -19,12 +19,65 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 161,
+    "testable as-is": 169,
     "needs refactoring first": 4,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
   },
   "entries": [
+    {
+      "id": "Hyperspace/causticTextures.cpp::causticTextures::causticTextures(HSRenderer*, int, int, int, int, float, float, float)",
+      "file": "Hyperspace/causticTextures.cpp",
+      "name": "causticTextures::causticTextures(HSRenderer*, int, int, int, int, float, float, float)",
+      "line": 38,
+      "regions": 56,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "b:api-coupled",
+      "reason": "False positive of b:api-coupled (ss-5h6): the only GL calls are upstream's wglSwapLayerBuffers under #ifdef WIN32 and glXSwapBuffers under #ifdef RS_XSCREENSAVER, never compiled on macOS. Rendering goes through HSRenderer, and the constructor is 100% covered by tests/test_textures.cpp.",
+      "set_by": "human",
+      "rule_would_say": {
+        "verdict": "B",
+        "rule": "b:api-coupled"
+      },
+      "decided": "2026-11-15"
+    },
+    {
+      "id": "Hyperspace/causticTextures.cpp::causticTextures::makeTrigAltitudes()",
+      "file": "Hyperspace/causticTextures.cpp",
+      "name": "causticTextures::makeTrigAltitudes()",
+      "line": 182,
+      "regions": 16,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/causticTextures.cpp::causticTextures::draw(HSRenderer*, int, int, int, int, float, float)",
+      "file": "Hyperspace/causticTextures.cpp",
+      "name": "causticTextures::draw(HSRenderer*, int, int, int, int, float, float)",
+      "line": 221,
+      "regions": 10,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/causticTextures.cpp::causticTextures::makeIndices(int, int*, int*)",
+      "file": "Hyperspace/causticTextures.cpp",
+      "name": "causticTextures::makeIndices(int, int*, int*)",
+      "line": 247,
+      "regions": 5,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
     {
       "id": "Hyperspace/flare.cpp::initFlares(HyperspaceSaverSettings*)",
       "file": "Hyperspace/flare.cpp",
@@ -67,6 +120,18 @@
       "name": "hsQuad(float const*, float, HSVertex*)",
       "line": 17,
       "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/renderer.cpp::hsBuildMipmaps(unsigned char const*, int, int, HSMipChain&)",
+      "file": "Hyperspace/renderer.cpp",
+      "name": "hsBuildMipmaps(unsigned char const*, int, int, HSMipChain&)",
+      "line": 26,
+      "regions": 22,
       "uncovered_regions": 0,
       "verdict": "A",
       "rule": "a:pure",
@@ -211,6 +276,42 @@
       "name": "hsProject(double, double, double, double const*, double const*, int const*, double*)",
       "line": 105,
       "regions": 7,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/wavyNormalCubeMaps.cpp::wavyNormalCubeMaps::wavyNormalCubeMaps(HSRenderer*, int, int)",
+      "file": "Hyperspace/wavyNormalCubeMaps.cpp",
+      "name": "wavyNormalCubeMaps::wavyNormalCubeMaps(HSRenderer*, int, int)",
+      "line": 29,
+      "regions": 42,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/wavyNormalCubeMaps.cpp::wavyNormalCubeMaps::wavyfunc(float*, float*)",
+      "file": "Hyperspace/wavyNormalCubeMaps.cpp",
+      "name": "wavyNormalCubeMaps::wavyfunc(float*, float*)",
+      "line": 144,
+      "regions": 16,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/wavyNormalCubeMaps.cpp::wavyNormalCubeMaps::normalize(float*)",
+      "file": "Hyperspace/wavyNormalCubeMaps.cpp",
+      "name": "wavyNormalCubeMaps::normalize(float*)",
+      "line": 159,
+      "regions": 1,
       "uncovered_regions": 0,
       "verdict": "A",
       "rule": "a:pure",

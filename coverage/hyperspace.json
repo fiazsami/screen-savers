@@ -5,8 +5,10 @@
     "context. Some of it still compiles against GL headers for types (below).",
     "Deliberately outside it, and why:",
     "  Hyperspace/*.cpp   the simulation still calls OpenGL directly -- except",
-    "                     transform.cpp, renderer.cpp, stretchedParticle.cpp and",
-    "                     flare.cpp, which the port has taken out of GL, and",
+    "                     transform.cpp, renderer.cpp, stretchedParticle.cpp,",
+    "                     flare.cpp, causticTextures.cpp and",
+    "                     wavyNormalCubeMaps.cpp, which the port has taken out",
+    "                     of GL, and",
     "                     splinePath.cpp, which never called GL and is not in",
     "                     yet (ss-65n)",
     "  rsText/rsText.cpp  builds display lists; GL-coupled",
@@ -81,7 +83,24 @@
     "stretchedParticle 62/62, flare 182/187, transform +4/+4. Nothing left the",
     "denominator. The ratchet raised the baseline 96.63% -> 96.77% on its own.",
     "flare.cpp's 5 uncovered lines are clamps in the flare texture generation that",
-    "no pixel reaches (temp is already within 0..1 there)."
+    "no pixel reaches (temp is already within 0..1 there).",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1). Every Hyperspace texture is created",
+    "through HSRenderer (rsText's font texture is not: rsText stays out, above):",
+    "mip chains are built on the CPU (hsBuildMipmaps, byte-identical to Apple's",
+    "gluBuild2DMipmaps) and the caustics render offscreen through the renderer, so",
+    "Hyperspace/causticTextures.cpp and wavyNormalCubeMaps.cpp make no GL calls on",
+    "macOS and join sources. causticTextures' constructor keeps upstream's buffer",
+    "swaps for other platforms -- wglSwapLayerBuffers under #ifdef WIN32,",
+    "glXSwapBuffers under #ifdef RS_XSCREENSAVER -- which are never compiled here;",
+    "triage misreads them as GL calls (ss-5h6) and its B verdict is overridden in",
+    "the ledger with that reason. causticTextures.cpp arrives without its fractal",
+    "altitude generator, which upstream never called; that code was deleted, not",
+    "excluded, so it is not in either count below.",
+    "Measured: count 2724 -> 3013 (+289) and covered 2636 -> 2925 (+289):",
+    "causticTextures 155/155, wavyNormalCubeMaps 112/112, renderer.cpp +22/+22",
+    "(hsBuildMipmaps). Nothing left the denominator. The ratchet raised the",
+    "baseline 96.77% -> 97.08% on its own."
   ],
 
   "metric": "lines",
@@ -97,7 +116,9 @@
     "Hyperspace/transform.cpp",
     "Hyperspace/renderer.cpp",
     "Hyperspace/stretchedParticle.cpp",
-    "Hyperspace/flare.cpp"
+    "Hyperspace/flare.cpp",
+    "Hyperspace/causticTextures.cpp",
+    "Hyperspace/wavyNormalCubeMaps.cpp"
   ],
 
   "tests": [
