@@ -10,8 +10,8 @@
 # Instrumented binaries and profile data from tools/coverage.sh
 .coverage-build/
 
-tools/__pycache__/
-.claude/hooks/__pycache__/
+# Python bytecode, anywhere in the tree.
+__pycache__/
 
 # Working state written by /coverage-loop: the dispatch queue and the iteration
 # log. Machine state for a run in progress, regenerated every time -- committing
