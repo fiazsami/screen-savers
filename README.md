@@ -2,10 +2,12 @@
 
 This repository holds the harness, coverage data and engineering record behind the modernisation of three legacy macOS screen savers: [Hyperspace](https://github.com/fiazsami/hyperspace), [Helios](https://github.com/fiazsami/helios) and [Hills](https://github.com/fiazsami/hills). They are written in C++, Objective-C and OpenGL. The harness is a team of Claude Code agents with fixed roles, guard hooks with their own tests, a line-coverage ratchet, and a pull request for every change.
 
+> **Status:** this is a first build of the harness, made in August 2026 and kept as built. The [lessons](docs/lessons/) record what did not work the first time.
+
 Over three days (21–23 August 2026) it produced:
-- **204 commits, merged through 88 pull requests** across the four repositories; after the first hour of setup, nothing was committed directly to a default branch;
+- **204 commits, merged through 88 pull requests** across the four repositories; after the first 85 minutes of setup, nothing was committed directly to a default branch;
 - line coverage of the shared C++ core in Hyperspace and Helios from **5.4% to 96.5%** (2,388 lines, [baselines](coverage/));
-- test suites of **189, 198 and 11 cases** in the three savers (the Hyperspace and Helios suites overlap, because they test the same core), and **132 tests** for the harness itself;
+- test suites of **189, 198 and 11 cases** in the three savers (the Hyperspace and Helios suites overlap, because they test the same core), and **161 tests** for the harness itself;
 - **eight defects fixed**: five latent ones in the shared core, found while writing tests, and three visible ones in how Hills behaves inside the macOS screen-saver host. Commit messages record mutation checks, including the ones where a mutant survived;
 - a move from macOS 10.9 to **macOS 26**, with CI on GitHub Actions for every saver.
 
@@ -41,11 +43,15 @@ Rules an agent is likely to break are enforced by `PreToolUse` hooks ([`.claude/
 | Hook | Refuses | Tests |
 | --- | --- | --- |
 | [`guard-default-branch.py`](.claude/hooks/guard-default-branch.py) | A commit on a default branch or a detached HEAD, and a push to a default branch, in the superproject and every submodule | 26 |
-| [`guard-pr-readiness.py`](.claude/hooks/guard-pr-readiness.py) | A pull request opened as anything but a draft, and `gh pr ready` before [`tools/prflight.py`](tools/prflight.py) passes | 22 (+12 for `prflight`) |
+| [`guard-pr-readiness.py`](.claude/hooks/guard-pr-readiness.py) | A pull request opened as anything but a draft, and `gh pr ready` before [`tools/prflight.py`](tools/prflight.py) passes | 22 (+28 for `prflight`) |
 | [`guard-signing-identity.py`](.claude/hooks/guard-signing-identity.py) | A commit that adds a developer team or a non-ad-hoc signing identity to an Xcode project | 36 |
 | [`shellparse.py`](.claude/hooks/shellparse.py) | (Shared parser: works out which git command a shell line really runs, through quoting, `cd` and `&&`) | 36 |
 
 `gh pr merge` is denied to agents outright ([`.claude/settings.json`](.claude/settings.json)). Merging is a human decision.
+
+Since November 2026, GitHub also enforces two required checks on every pull request in all four repositories:
+- CI: `tests` in each saver, and here `gate` ([`.github/workflows/gate.yml`](.github/workflows/gate.yml)), which runs the merge-ordering checks from `prflight.py`;
+- `code-review` is a commit status that [`tools/review-status.py`](tools/review-status.py) (13 tests) posts once a review has reported. Any new push clears it, so changed code always needs a fresh review.
 
 ## The coverage gate
 
@@ -54,9 +60,10 @@ Rules an agent is likely to break are enforced by `PreToolUse` hooks ([`.claude/
 | Step | Hyperspace and Helios line coverage |
 | --- | --- |
 | Start | 5.43% (129 / 2,375 lines) |
-| First loop runs ([L4](docs/lessons/2026-08-21-first-coverage-loop-run.md), [L5](docs/lessons/2026-08-22-second-coverage-loop-run.md)) | 20.89% → 63.5% |
-| `impCubeVolume` unblocked, by hand ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)) | 63.59% → 83.79% |
-| Final | 96.52% (2,305 / 2,388 lines) |
+| `rsMath` tests and first refactors, before any loop run | 5.43% → 20.89% |
+| First loop runs ([L4](docs/lessons/2026-08-21-first-coverage-loop-run.md), [L5](docs/lessons/2026-08-22-second-coverage-loop-run.md)) | 20.89% → 63.59% |
+| `impCubeVolume` unblocked, plus the frame fix, by hand ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)) | 63.59% → 83.79% |
+| Crawl-path tests and the clamp fix | 83.79% → 96.52% (2,305 / 2,388 lines) |
 
 ## What went wrong, and what changed because of it
 
@@ -76,9 +83,10 @@ Every run ends with a dated write-up in [`docs/lessons/`](docs/lessons/). The le
 .claude/commands/   /coverage-loop
 .claude/hooks/      guard hooks and their tests
 .claude/skills/     coverage, testing, triage and refactor procedures
+.github/workflows/  the gate check
 coverage/           per-saver gate config, baselines and triage output
 docs/               reference (current rules), lessons (dated), improvements
-tools/              coverage gate, triage classifier, PR pre-flight
+tools/              coverage gate, triage classifier, PR pre-flight, review status
 hyperspace/ helios/ hills/   the three savers, as git submodules
 ```
 
