@@ -19,12 +19,84 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 155,
-    "needs refactoring first": 3,
+    "testable as-is": 161,
+    "needs refactoring first": 4,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
   },
   "entries": [
+    {
+      "id": "Hyperspace/flare.cpp::initFlares(HyperspaceSaverSettings*)",
+      "file": "Hyperspace/flare.cpp",
+      "name": "initFlares(HyperspaceSaverSettings*)",
+      "line": 50,
+      "regions": 113,
+      "uncovered_regions": 5,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/flare.cpp::flareElement(HyperspaceSaverSettings*, int, float const*, float, float, float, float)",
+      "file": "Hyperspace/flare.cpp",
+      "name": "flareElement(HyperspaceSaverSettings*, int, float const*, float, float, float, float)",
+      "line": 143,
+      "regions": 1,
+      "uncovered_regions": 0,
+      "verdict": "B",
+      "rule": "b:hidden",
+      "reason": "internal linkage -- no caller outside its translation unit, so a test cannot reach it",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/flare.cpp::flare(float*, float, float, float, float, HyperspaceSaverSettings*)",
+      "file": "Hyperspace/flare.cpp",
+      "name": "flare(float*, float, float, float, float, HyperspaceSaverSettings*)",
+      "line": 152,
+      "regions": 35,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/renderer.cpp::hsQuad(float const*, float, HSVertex*)",
+      "file": "Hyperspace/renderer.cpp",
+      "name": "hsQuad(float const*, float, HSVertex*)",
+      "line": 17,
+      "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/stretchedParticle.cpp::stretchedParticle::stretchedParticle()",
+      "file": "Hyperspace/stretchedParticle.cpp",
+      "name": "stretchedParticle::stretchedParticle()",
+      "line": 41,
+      "regions": 1,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/stretchedParticle.cpp::stretchedParticle::draw(HSRenderer*, unsigned int, float*, float, double*, double*, int*)",
+      "file": "Hyperspace/stretchedParticle.cpp",
+      "name": "stretchedParticle::draw(HSRenderer*, unsigned int, float*, float, double*, double*, int*)",
+      "line": 54,
+      "regions": 11,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
     {
       "id": "Hyperspace/transform.cpp::hsIdentity(float*)",
       "file": "Hyperspace/transform.cpp",
@@ -98,10 +170,22 @@
       "set_by": "rule"
     },
     {
+      "id": "Hyperspace/transform.cpp::hsApply(float const*, float, float, float, float*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsApply(float const*, float, float, float, float*)",
+      "line": 75,
+      "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
       "id": "Hyperspace/transform.cpp::hsPerspective(float*, double, double, double, double)",
       "file": "Hyperspace/transform.cpp",
       "name": "hsPerspective(float*, double, double, double, double)",
-      "line": 75,
+      "line": 81,
       "regions": 9,
       "uncovered_regions": 0,
       "verdict": "A",
@@ -113,7 +197,7 @@
       "id": "Hyperspace/transform.cpp::transformPoint(double const*, double const*, double*)",
       "file": "Hyperspace/transform.cpp",
       "name": "transformPoint(double const*, double const*, double*)",
-      "line": 92,
+      "line": 98,
       "regions": 4,
       "uncovered_regions": 0,
       "verdict": "B",
@@ -125,7 +209,7 @@
       "id": "Hyperspace/transform.cpp::hsProject(double, double, double, double const*, double const*, int const*, double*)",
       "file": "Hyperspace/transform.cpp",
       "name": "hsProject(double, double, double, double const*, double const*, int const*, double*)",
-      "line": 99,
+      "line": 105,
       "regions": 7,
       "uncovered_regions": 0,
       "verdict": "A",
