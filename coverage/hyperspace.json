@@ -3,7 +3,8 @@
     "Hyperspace is not ported yet, so the denominator is only the shared C++",
     "core that already compiles without a GL context.",
     "Deliberately outside it, and why:",
-    "  Hyperspace/*.cpp   the simulation still calls OpenGL directly",
+    "  Hyperspace/*.cpp   the simulation still calls OpenGL directly -- except",
+    "                     transform.cpp, the first file the port took out of GL",
     "  rsText/rsText.cpp  builds display lists; GL-coupled",
     "  HyperspaceView.mm  AppKit/NSOpenGLView; needs a host process",
     "As the port replaces those with testable code, move them into sources --",
@@ -49,7 +50,20 @@
     "The 84.00% above is what the baseline read on the day, and it is deliberately",
     "not updated: this entry records what ss-3c8 did, not where the number stands.",
     "It has since moved to 96.52% for an unrelated reason -- ss-c49 and ss-qsv,",
-    "which added tests rather than touching scope. The denominator is still 2388."
+    "which added tests rather than touching scope. The denominator stayed 2388",
+    "until 2026-11-15, when transform.cpp joined (see the entry below).",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1, hyperspace#22). Hyperspace/transform.cpp",
+    "joins sources: the camera, billboard and projection maths used to run on the GL",
+    "matrix stack and GLU, and now runs as plain functions that need no context. It is",
+    "the first file the Metal port has taken out of GL, and it arrives at 100% (75/75).",
+    "Measured: count 2388 -> 2463 and covered 2305 -> 2380, both +75 -- exactly this",
+    "file, so the baseline moved 96.52% -> 96.63% because tested code was added, not",
+    "because anything left the denominator. (A first draft of this PR carried a baseline",
+    "written against an earlier revision of the file, 2461/2378; it was regenerated with",
+    "--update-baseline against the pinned commit rather than edited.)",
+    "The submodule's tests workflow mirrors this list by hand and lists the file too;",
+    "tools/tests/test_ci_source_lists.py now fails when the two disagree."
   ],
 
   "metric": "lines",
@@ -61,7 +75,8 @@
     "rsMath",
     "Implicit",
     "Rgbhsl",
-    "util"
+    "util",
+    "Hyperspace/transform.cpp"
   ],
 
   "tests": [

@@ -1,6 +1,6 @@
 {
   "project": "hyperspace",
-  "updated": "2026-08-22",
+  "updated": "2026-11-15",
   "_policy": [
     "Advisory, not scope. Nothing reads this file to change what the coverage gate",
     "counts -- editing 'sources' or 'exclude' in the coverage config is a decision",
@@ -19,12 +19,120 @@
     "keeps rule_would_say when the rules disagree, so drift shows up in the diff."
   ],
   "counts": {
-    "testable as-is": 147,
-    "needs refactoring first": 2,
+    "testable as-is": 155,
+    "needs refactoring first": 3,
     "not worth testing": 70,
     "unclassified -- needs a human call": 0
   },
   "entries": [
+    {
+      "id": "Hyperspace/transform.cpp::hsIdentity(float*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsIdentity(float*)",
+      "line": 19,
+      "regions": 1,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsMultiply(float*, float const*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsMultiply(float*, float const*)",
+      "line": 25,
+      "regions": 7,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsRotate(float*, float, float, float, float)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsRotate(float*, float, float, float, float)",
+      "line": 34,
+      "regions": 5,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsTranslate(float*, float, float, float)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsTranslate(float*, float, float, float)",
+      "line": 50,
+      "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsScale(float*, float, float, float)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsScale(float*, float, float, float)",
+      "line": 56,
+      "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsRotationInverse(float*, float const*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsRotationInverse(float*, float const*)",
+      "line": 65,
+      "regions": 7,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsPerspective(float*, double, double, double, double)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsPerspective(float*, double, double, double, double)",
+      "line": 75,
+      "regions": 9,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::transformPoint(double const*, double const*, double*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "transformPoint(double const*, double const*, double*)",
+      "line": 92,
+      "regions": 4,
+      "uncovered_regions": 0,
+      "verdict": "B",
+      "rule": "b:hidden",
+      "reason": "internal linkage -- no caller outside its translation unit, so a test cannot reach it",
+      "set_by": "rule"
+    },
+    {
+      "id": "Hyperspace/transform.cpp::hsProject(double, double, double, double const*, double const*, int const*, double*)",
+      "file": "Hyperspace/transform.cpp",
+      "name": "hsProject(double, double, double, double const*, double const*, int const*, double*)",
+      "line": 99,
+      "regions": 7,
+      "uncovered_regions": 0,
+      "verdict": "A",
+      "rule": "a:pure",
+      "reason": "external linkage, deterministic, no global state, no API calls",
+      "set_by": "rule"
+    },
     {
       "id": "Implicit/impCapsule.cpp::impCapsule::value(float*)",
       "file": "Implicit/impCapsule.cpp",
