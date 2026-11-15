@@ -1,10 +1,14 @@
 {
   "_scope": [
-    "Hyperspace is not ported yet, so the denominator is only the shared C++",
-    "core that already compiles without a GL context.",
+    "Hyperspace is not ported yet, so the denominator is the shared C++ core plus",
+    "the Hyperspace files the port has taken off GL: code that runs without a GL",
+    "context. Some of it still compiles against GL headers for types (below).",
     "Deliberately outside it, and why:",
     "  Hyperspace/*.cpp   the simulation still calls OpenGL directly -- except",
-    "                     transform.cpp, the first file the port took out of GL",
+    "                     transform.cpp, renderer.cpp, stretchedParticle.cpp and",
+    "                     flare.cpp, which the port has taken out of GL, and",
+    "                     splinePath.cpp, which never called GL and is not in",
+    "                     yet (ss-65n)",
     "  rsText/rsText.cpp  builds display lists; GL-coupled",
     "  HyperspaceView.mm  AppKit/NSOpenGLView; needs a host process",
     "As the port replaces those with testable code, move them into sources --",
@@ -16,7 +20,9 @@
     "it had de-GL'd it during its Metal port, but that fork was deleted and",
     "re-forked back to a pre-port state, so the two agree again. Drop the",
     "framework once hyperspace is ported, or once the shared core is extracted",
-    "and unified.",
+    "and unified. The GL headers stay needed longer than the framework: the",
+    "Hyperspace sources here include Hyperspace.h, whose settings struct still",
+    "declares GLuint and GLint fields.",
     "",
     "Denominator change, 2026-08-22 (ss-3c8). The line count fell 2394 -> 2388 and",
     "the baseline rose 83.79% -> 84.00% WITHOUT any test being written. Recorded",
@@ -63,7 +69,19 @@
     "written against an earlier revision of the file, 2461/2378; it was regenerated with",
     "--update-baseline against the pinned commit rather than edited.)",
     "The submodule's tests workflow mirrors this list by hand and lists the file too;",
-    "tools/tests/test_ci_source_lists.py now fails when the two disagree."
+    "tools/tests/test_ci_source_lists.py now fails when the two disagree.",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1). The stars and the lens flare draw through",
+    "HSRenderer (Hyperspace/renderer.h) and compute their own vertices, so",
+    "Hyperspace/renderer.cpp, stretchedParticle.cpp and flare.cpp make no GL calls",
+    "and join sources. They still include GL headers, for the GLuint/GLint fields",
+    "of the settings struct in Hyperspace.h; the Metal port retypes those. The GL backend, rendererGL.cpp, stays out: it is the GL.",
+    "Measured: count 2463 -> 2724 (+261) and covered 2380 -> 2636 (+256). That is",
+    "exactly these files plus transform.cpp's new hsApply: renderer 8/8,",
+    "stretchedParticle 62/62, flare 182/187, transform +4/+4. Nothing left the",
+    "denominator. The ratchet raised the baseline 96.63% -> 96.77% on its own.",
+    "flare.cpp's 5 uncovered lines are clamps in the flare texture generation that",
+    "no pixel reaches (temp is already within 0..1 there)."
   ],
 
   "metric": "lines",
@@ -76,7 +94,10 @@
     "Implicit",
     "Rgbhsl",
     "util",
-    "Hyperspace/transform.cpp"
+    "Hyperspace/transform.cpp",
+    "Hyperspace/renderer.cpp",
+    "Hyperspace/stretchedParticle.cpp",
+    "Hyperspace/flare.cpp"
   ],
 
   "tests": [
