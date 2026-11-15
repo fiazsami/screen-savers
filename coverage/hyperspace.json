@@ -6,11 +6,10 @@
     "Deliberately outside it, and why:",
     "  Hyperspace/*.cpp   the simulation still calls OpenGL directly -- except",
     "                     transform.cpp, renderer.cpp, stretchedParticle.cpp,",
-    "                     flare.cpp, causticTextures.cpp and",
-    "                     wavyNormalCubeMaps.cpp, which the port has taken out",
-    "                     of GL, and",
-    "                     splinePath.cpp, which never called GL and is not in",
-    "                     yet (ss-65n)",
+    "                     flare.cpp, causticTextures.cpp,",
+    "                     wavyNormalCubeMaps.cpp, goo.cpp and tunnel.cpp, which",
+    "                     the port has taken out of GL, and splinePath.cpp,",
+    "                     which never called GL",
     "  rsText/rsText.cpp  builds display lists; GL-coupled",
     "  HyperspaceView.mm  AppKit/NSOpenGLView; needs a host process",
     "As the port replaces those with testable code, move them into sources --",
@@ -100,7 +99,21 @@
     "Measured: count 2724 -> 3013 (+289) and covered 2636 -> 2925 (+289):",
     "causticTextures 155/155, wavyNormalCubeMaps 112/112, renderer.cpp +22/+22",
     "(hsBuildMipmaps). Nothing left the denominator. The ratchet raised the",
-    "baseline 96.77% -> 97.08% on its own."
+    "baseline 96.77% -> 97.08% on its own.",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1). The goo and the tunnel draw through",
+    "HSRenderer (beginGoo/drawGooSurface/endGoo, beginTunnel/drawTunnelStrip/",
+    "endTunnel); their texture binding, GLSL programs and fixed-function",
+    "fallbacks moved into rendererGL.cpp, which stays out. That leaves",
+    "Hyperspace/goo.cpp and tunnel.cpp with no GL calls, and tunnel.cpp needs",
+    "splinePath.cpp, which never had any (ss-65n): all three join sources.",
+    "Measured: count 3013 -> 3417 (+404) and covered 2925 -> 3326 (+401):",
+    "goo 103/103, tunnel 135/137, splinePath 162/164, and one more line of the",
+    "existing scope covered. Nothing left the denominator. The four uncovered:",
+    "two clamps in tunnel::make no value reaches (2cos - 1 <= 1, and",
+    "0.25 * (cos + cos + 2) >= 0), and getBaseDirection's two section clamps,",
+    "which only reads of never-written basedir entries reach (ss-yuv). The",
+    "ratchet raised the baseline 97.08% -> 97.34% on its own."
   ],
 
   "metric": "lines",
@@ -118,7 +131,10 @@
     "Hyperspace/stretchedParticle.cpp",
     "Hyperspace/flare.cpp",
     "Hyperspace/causticTextures.cpp",
-    "Hyperspace/wavyNormalCubeMaps.cpp"
+    "Hyperspace/wavyNormalCubeMaps.cpp",
+    "Hyperspace/goo.cpp",
+    "Hyperspace/tunnel.cpp",
+    "Hyperspace/splinePath.cpp"
   ],
 
   "tests": [
