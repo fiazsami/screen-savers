@@ -1,6 +1,6 @@
-# screen-savers: an agent harness for legacy-code modernisation
+# screen-savers: an agent harness for legacy-code modernization
 
-This repository holds the harness, coverage data and engineering record behind the modernisation of three legacy macOS screen savers: [Hyperspace](https://github.com/fiazsami/hyperspace), [Helios](https://github.com/fiazsami/helios) and [Hills](https://github.com/fiazsami/hills). They are written in C++, Objective-C and OpenGL. The harness is a team of Claude Code agents with fixed roles, guard hooks with their own tests, a line-coverage ratchet, and a pull request for every change.
+This repository holds the harness, coverage data and engineering record behind the modernization of three legacy macOS screen savers: [Hyperspace](https://github.com/fiazsami/hyperspace), [Helios](https://github.com/fiazsami/helios) and [Hills](https://github.com/fiazsami/hills). They are written in C++, Objective-C and OpenGL. The harness is a team of Claude Code agents with fixed roles, guard hooks with their own tests, a line-coverage ratchet, and a pull request for every change.
 
 > **Status:** this is a first build of the harness, made in August 2026 and kept as built. The [lessons](docs/lessons/) record what did not work the first time.
 
@@ -19,7 +19,7 @@ Over three days (21–23 August 2026) it produced:
 flowchart LR
     R[coverage-runner<br/>measure gaps] --> T[triager<br/>classify each function]
     T -->|testable| W[test-writer<br/>write tests, prove they can fail]
-    T -->|refactor first| F[refactorer<br/>make it testable, behaviour unchanged]
+    T -->|refactor first| F[refactorer<br/>make it testable, behavior unchanged]
     W --> V[verifier<br/>re-run the gate from clean,<br/>read every diff]
     F --> V
     V -->|below threshold, still gaining| R
@@ -31,7 +31,7 @@ flowchart LR
 | [`coverage-runner`](.claude/agents/coverage-runner.md) | Runs the coverage gate and returns a gap summary. It is meant to be read-only; [L4](docs/lessons/2026-08-21-first-coverage-loop-run.md) records a run where it wrote files anyway |
 | [`triager`](.claude/agents/triager.md) | Sorts uncovered functions into testable, refactor-first and not worth testing, and writes the dispatch queue |
 | [`test-writer`](.claude/agents/test-writer.md) | Writes tests for one topic, then shows they fail when the code is broken |
-| [`refactorer`](.claude/agents/refactorer.md) | Makes one blocked function testable without changing behaviour, with characterisation tests first |
+| [`refactorer`](.claude/agents/refactorer.md) | Makes one blocked function testable without changing behavior, with characterization tests first |
 | [`verifier`](.claude/agents/verifier.md) | Re-runs the gate from a clean state, reads every diff, and grades whether the new tests can actually fail |
 
 The loop is designed to stop at the threshold, when the gain per iteration falls below a floor, or after three iterations. In practice the floor never triggered, and the step from 63.6% to 83.8% was driven by hand ([L6](docs/lessons/2026-08-22-the-impcubevolume-unblock.md)).
@@ -107,9 +107,9 @@ for t in .claude/hooks/test_*.py; do python3 "$t"; done   # harness tests
 python3 -m unittest discover tools/tests
 ```
 
-## Credits and licence
+## Credits and license
 
-The tooling and documentation here are MIT-licensed ([`LICENSE`](LICENSE)), © 2026 Fiaz Sami. The savers keep their own licences in their repositories:
+The tooling and documentation here are MIT-licensed ([`LICENSE`](LICENSE)), © 2026 Fiaz Sami. The savers keep their own licenses in their repositories:
 - Hyperspace and Helios: GPL-2.0 or later (core libraries LGPL-2.1 or later), © Terence M. Welsh, macOS port by Nick Zitzmann;
 - Hills: GPL-2.0 or later, © Chris Kent.
 
