@@ -1,0 +1,97 @@
+# The superproject's first workflow, and the server-side half of `ss-e4a`.
+#
+# Until now this repository had no .github/ at all. Every merge-ordering rule
+# was checked in the agent's own tool calls, which CLAUDE.md recorded as a
+# "known limit, and it is a large one": a pull request merged in the GitHub web
+# UI passed none of them. It could not be fixed before -- the repository is
+# private and the protection endpoints returned 403 -- and a Pro upgrade is
+# what changed that.
+#
+# What runs here is `tools/prflight.py --ci`, which is the same code that
+# guards `gh pr ready` locally, minus the two review predicates. A workflow
+# re-runs on push and NOT when a commit status is posted, so a workflow that
+# demanded the review status would go red before the review and stay red after
+# it. Review is a required context in its own right -- `code-review`, posted by
+# tools/review-status.py -- and this job covers the ordering failures instead:
+#
+#   FM2  a stacked PR merging into a base that already merged (hills#7)
+#   FM3  a submodule pointer that is not on the submodule's default branch
+#
+# The job is named `gate` and the branch ruleset requires that exact string.
+# Renaming the job silently disables the gate, the same way the submodule
+# `tests` workflows warn about theirs.
+
+name: gate
+
+on:
+  pull_request:
+    # `edited` is the one that is not a default, and it is here for a reason
+    # the rest of this file argues at length: a workflow re-runs on push and on
+    # nothing else, so anything it checks that can change WITHOUT a push needs
+    # a trigger of its own.
+    #
+    # `base_is_safe` is exactly that. Whether origin/<base> has reached main
+    # changes when ANOTHER pull request merges. A stacked PR is legitimately
+    # red while its base is open; when the base merges, branch auto-deletion
+    # retargets this one onto main -- and a base change fires `edited`, not
+    # `synchronize`, which is head-branch-only. Without `edited` the required
+    # `gate` context could stay red with nothing anyone does on the PR able to
+    # clear it, which is the same unclearable-check failure the soft pointer
+    # lag rule was dropped from --ci to avoid.
+    #
+    # Cost is a re-run when a title or body is edited. That is a 21-second
+    # ubuntu job, which is worth not deadlocking a stacked PR over.
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Fetch the refs prflight resolves against
+        run: |
+          set -eu
+          # `fetch-depth: 0` above already brings every superproject branch,
+          # which is what base_is_safe needs: it resolves origin/<baseRefName>,
+          # and for a STACKED pull request that is neither main nor the head.
+          # Do not trim fetch-depth to speed the checkout up without replacing
+          # that -- a missing ref makes merge-base answer "not an ancestor",
+          # and stacked PRs would start failing for a reason that is not about
+          # the code.
+          git fetch --no-tags --force origin \
+            "+refs/heads/*:refs/remotes/origin/*"
+          # Submodules are checked out detached at the pinned commit and have
+          # no origin/master, which pointer_is_sane names explicitly. Fetch it
+          # per submodule. --unshallow is deliberately not used: the clone is
+          # already complete, so it fails on every run and the noise makes a
+          # real failure hard to see.
+          for sub in helios hills hyperspace; do
+            git -C "$sub" fetch --no-tags --force origin \
+              "+refs/heads/master:refs/remotes/origin/master"
+          done
+
+      - name: Python suites
+        run: |
+          set -eux
+          python3 -m unittest discover tools/tests
+          # Every hook, not just the changed one -- they share shellparse.py,
+          # and `ss-9fq` was one guard being fixed while its sibling kept the
+          # same bug.
+          for t in .claude/hooks/test_*.py; do python3 "$t"; done
+
+      - name: Merge-order predicates
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/prflight.py --ci screen-savers#${{ github.event.pull_request.number }}
