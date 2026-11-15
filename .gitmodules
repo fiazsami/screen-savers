@@ -1,9 +1,9 @@
 [submodule "helios"]
 	path = helios
-	url = git@github.com:fiazsami/helios.git
+	url = https://github.com/fiazsami/helios.git
 [submodule "hills"]
 	path = hills
-	url = git@github.com:fiazsami/hills.git
+	url = https://github.com/fiazsami/hills.git
 [submodule "hyperspace"]
 	path = hyperspace
-	url = git@github.com:fiazsami/hyperspace.git
+	url = https://github.com/fiazsami/hyperspace.git
