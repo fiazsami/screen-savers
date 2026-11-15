@@ -61,7 +61,8 @@
     "rsMath",
     "Implicit",
     "Rgbhsl",
-    "util"
+    "util",
+    "Hyperspace/transform.cpp"
   ],
 
   "tests": [
