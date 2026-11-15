@@ -49,7 +49,18 @@
     "The 84.00% above is what the baseline read on the day, and it is deliberately",
     "not updated: this entry records what ss-3c8 did, not where the number stands.",
     "It has since moved to 96.52% for an unrelated reason -- ss-c49 and ss-qsv,",
-    "which added tests rather than touching scope. The denominator is still 2388."
+    "which added tests rather than touching scope. The denominator is still 2388.",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1, hyperspace#22). Hyperspace/transform.cpp",
+    "joins sources: the camera, billboard and projection maths used to run on the GL",
+    "matrix stack and GLU, and now runs as plain functions that need no context. It is",
+    "the first file the Metal port has taken out of GL, and it arrives at 100% (75/75).",
+    "Measured: count 2388 -> 2463 and covered 2305 -> 2380, both +75 -- exactly this",
+    "file, so the baseline moved 96.52% -> 96.63% because tested code was added, not",
+    "because anything left the denominator. (The baseline file records 2461/2378: it was",
+    "written against an earlier revision of the file, and those fields are write-only -- ss-8hh.)",
+    "The submodule's",
+    "tests workflow mirrors this list by hand and lists the file too."
   ],
 
   "metric": "lines",
