@@ -119,10 +119,11 @@
     "HSRenderer: its sphere in the goo's look (beginGoo/drawGooSphere/endGoo),",
     "tessellated by hsSphereBand in renderer.cpp and compiled into a display",
     "list by rendererGL.cpp, which stays out. Hyperspace/starBurst.cpp makes no",
-    "GL calls and joins sources. Measured: count 3417 -> 3522 (+105) and covered",
-    "3326 -> 3431 (+105): starBurst 89/89, renderer.cpp +16/+16 (hsSphereBand).",
+    "GL calls and joins sources. Measured: count 3417 -> 3523 (+106) and covered",
+    "3326 -> 3432 (+106): starBurst 89/89, renderer.cpp +17/+17 (hsSphereBand).",
     "Nothing left the denominator. The ratchet raised the baseline",
-    "97.34% -> 97.42% on its own."
+    "97.34% -> 97.42% on its own; --update-baseline then recorded the counts,",
+    "which a later one-line change moved without moving the rounded percent."
   ],
 
   "metric": "lines",
