@@ -7,9 +7,9 @@
     "  Hyperspace/*.cpp   the simulation still calls OpenGL directly -- except",
     "                     transform.cpp, renderer.cpp, stretchedParticle.cpp,",
     "                     flare.cpp, causticTextures.cpp,",
-    "                     wavyNormalCubeMaps.cpp, goo.cpp and tunnel.cpp, which",
-    "                     the port has taken out of GL, and splinePath.cpp,",
-    "                     which never called GL",
+    "                     wavyNormalCubeMaps.cpp, goo.cpp, tunnel.cpp and",
+    "                     starBurst.cpp, which the port has taken out of GL,",
+    "                     and splinePath.cpp, which never called GL",
     "  rsText/rsText.cpp  builds display lists; GL-coupled",
     "  HyperspaceView.mm  AppKit/NSOpenGLView; needs a host process",
     "As the port replaces those with testable code, move them into sources --",
@@ -113,7 +113,16 @@
     "two clamps in tunnel::make no value reaches (2cos - 1 <= 1, and",
     "0.25 * (cos + cos + 2) >= 0), and getBaseDirection's two section clamps,",
     "which only reads of never-written basedir entries reach (ss-yuv). The",
-    "ratchet raised the baseline 97.08% -> 97.34% on its own."
+    "ratchet raised the baseline 97.08% -> 97.34% on its own.",
+    "",
+    "Scope grows, 2026-11-15 (ss-a4a.4.1). The starburst draws through",
+    "HSRenderer: its sphere in the goo's look (beginGoo/drawGooSphere/endGoo),",
+    "tessellated by hsSphereBand in renderer.cpp and compiled into a display",
+    "list by rendererGL.cpp, which stays out. Hyperspace/starBurst.cpp makes no",
+    "GL calls and joins sources. Measured: count 3417 -> 3522 (+105) and covered",
+    "3326 -> 3431 (+105): starBurst 89/89, renderer.cpp +16/+16 (hsSphereBand).",
+    "Nothing left the denominator. The ratchet raised the baseline",
+    "97.34% -> 97.42% on its own."
   ],
 
   "metric": "lines",
@@ -134,7 +143,8 @@
     "Hyperspace/wavyNormalCubeMaps.cpp",
     "Hyperspace/goo.cpp",
     "Hyperspace/tunnel.cpp",
-    "Hyperspace/splinePath.cpp"
+    "Hyperspace/splinePath.cpp",
+    "Hyperspace/starBurst.cpp"
   ],
 
   "tests": [
