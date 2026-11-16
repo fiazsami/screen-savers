@@ -4,14 +4,12 @@
     "the Hyperspace files the port has taken off GL: code that runs without a GL",
     "context. Some of it still compiles against GL headers for types (below).",
     "Deliberately outside it, and why:",
-    "  Hyperspace/*.cpp   Hyperspace.cpp, the frame loop: no GL on macOS since",
-    "                     ss-a4a.4.4.3, untested, and joins in ss-a4a.4.4.4;",
-    "                     rendererGL.cpp, parity's GL reference. All the others",
-    "                     are in -- transform.cpp, renderer.cpp, stretchedParticle.cpp,",
-    "                     flare.cpp, causticTextures.cpp,",
-    "                     wavyNormalCubeMaps.cpp, goo.cpp, tunnel.cpp and",
-    "                     starBurst.cpp, which the port has taken out of GL,",
-    "                     and splinePath.cpp, which never called GL",
+    "  Hyperspace/rendererGL.cpp  parity's GL reference. Every other",
+    "                     Hyperspace/*.cpp is in -- transform.cpp, renderer.cpp,",
+    "                     stretchedParticle.cpp, flare.cpp, causticTextures.cpp,",
+    "                     wavyNormalCubeMaps.cpp, goo.cpp, tunnel.cpp,",
+    "                     starBurst.cpp and Hyperspace.cpp, which the port has",
+    "                     taken out of GL, and splinePath.cpp, which never called GL",
     "  HyperspaceView.mm  AppKit and a CAMetalLayer; needs a host process",
   "  Hyperspace/rendererMetal.mm  the Metal backend; every call needs an",
   "                     MTLDevice and a command queue. parity judges it on the",
@@ -140,7 +138,19 @@
     "left was draw(), never reachable without a context. Code was removed, not",
     "excluded: no test assertion changed (test_impsurface.cpp's header comment did)",
     "and nothing moved out of sources. The ratchet",
-    "raised the baseline 97.42% -> 98.36% on its own."
+    "raised the baseline 97.42% -> 98.36% on its own.",
+    "",
+    "Scope grows, 2026-11-16 (ss-a4a.4.4.4, hyperspace#42). Hyperspace/Hyperspace.cpp,",
+    "the frame loop (setDefaults, reshape, initSaver, draw, cleanUp), has drawn only",
+    "through HSRenderer since ss-a4a.4.4.3 and joins sources, tested by",
+    "tests/test_frame_loop.cpp against the recording renderer. Measured: count",
+    "3483 -> 3776 (+293) and covered 3426 -> 3718 (+292): Hyperspace.cpp 291/293,",
+    "and one more line of the existing scope that the new frames reach. Nothing left",
+    "the denominator. The two uncovered: a random camera-heading branch the seeded",
+    "run does not take, and a clamp in the unshaded sphere map no value reaches",
+    "(x*x + y*y is never negative). The ratchet raised the baseline",
+    "98.36% -> 98.46% on its own. Of the Hyperspace sources only rendererGL.cpp,",
+    "HyperspaceView.mm and rendererMetal.mm are now outside."
   ],
 
   "metric": "lines",
@@ -162,7 +172,8 @@
     "Hyperspace/goo.cpp",
     "Hyperspace/tunnel.cpp",
     "Hyperspace/splinePath.cpp",
-    "Hyperspace/starBurst.cpp"
+    "Hyperspace/starBurst.cpp",
+    "Hyperspace/Hyperspace.cpp"
   ],
 
   "tests": [
