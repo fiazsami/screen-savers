@@ -135,7 +135,8 @@
     "and covered 3432 -> 3426 (-6). The six covered lines were the constructor's",
     "and destructor's VBO handling and reset()'s recompile flag; the rest of what",
     "left was draw(), never reachable without a context. Code was removed, not",
-    "excluded: no test changed and nothing moved out of sources. The ratchet",
+    "excluded: no test assertion changed (test_impsurface.cpp's header comment did)",
+    "and nothing moved out of sources. The ratchet",
     "raised the baseline 97.42% -> 98.36% on its own."
   ],
 

@@ -356,7 +356,7 @@ denominators before reading the percentages:
 | | denominator | what it is |
 | --- | --- | --- |
 | helios | 987 regions | the shared C++ core only -- excludes `Helios.cpp`, `rsText`, `HeliosView.mm` |
-| hyperspace | 3523 **lines** | same core plus the Hyperspace files the port has taken off GL (its `_scope` lists them); 7 files still call GL on macOS |
+| hyperspace | 3483 **lines** | same core plus the Hyperspace files the port has taken off GL (its `_scope` lists them). On macOS only `rendererGL.cpp`, parity's reference renderer, still calls GL. `Hyperspace.cpp`, `HyperspaceView.mm` and `rendererMetal.mm` are not in the denominator yet (ss-a4a.4.4.4) |
 | hills | **31 regions** | `Source Code/Camera.m` alone; everything else is GL or Cocoa |
 
 So driving helios to 100% would still leave the actual screen saver untested,
