@@ -356,7 +356,7 @@ denominators before reading the percentages:
 | | denominator | what it is |
 | --- | --- | --- |
 | helios | 987 regions | the shared C++ core only -- excludes `Helios.cpp`, `rsText`, `HeliosView.mm` |
-| hyperspace | 3820 **lines** | same core plus the Hyperspace files the port has taken off GL (its `_scope` lists them). On macOS only `rendererGL.cpp`, parity's reference renderer, still calls GL. The frame loop, `Hyperspace.cpp`, joined in ss-a4a.4.4.4; `HyperspaceView.mm` and `rendererMetal.mm` are not in the denominator, because each needs a host process or a GPU |
+| hyperspace | 3820 **lines** | same core plus the Hyperspace files the port has taken off GL (its `_scope` lists them). On macOS only `rendererGL.cpp`, parity's reference renderer, still calls GL. The frame loop, `Hyperspace.cpp`, joined in ss-a4a.4.4.4; `HyperspaceView.mm` and `rendererMetal.mm` are not in the denominator, because each needs a host process or a GPU. Nor is `metal/GooBuild.metal`, which builds the goo's surface on the saver: the CPU builder it replaced (`goo::buildSurface`, `impCubeVolume`) is still measured, but on the Metal saver it now runs only for GL, so the goo's live path is judged by parity's `goo` pass and its `goobuild_*` fixtures, not by this number |
 | hills | **31 regions** | `Source Code/Camera.m` alone; everything else is GL or Cocoa |
 
 So driving helios to 100% would still leave the actual screen saver untested,
