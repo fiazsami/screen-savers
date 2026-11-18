@@ -160,7 +160,22 @@
     "goo's live path: parity's goo pass and its goobuild_*.metal fixtures judge it.",
     "Nothing moved in or out of sources; #47 added 44 lines to files already in",
     "scope, all covered: count 3776 -> 3820, covered 3718 -> 3762, and the ratchet",
-    "moved 98.46% -> 98.48% on its own."
+    "moved 98.46% -> 98.48% on its own.",
+    "",
+    "What judges the Metal frame now, 2026-11-17 (hyperspace#59). The tone map",
+    "completed the move of the frame passes into parity/gl-retired: stars, tunnel",
+    "and sun went under ss-ss8, and #59 added goo, burst and goosoft. backendcheck",
+    "now judges every frame pass against its goldens; GL (parity's default,",
+    "without renderer=metal) stays the backend's reference for textures and",
+    "caustics, and seamcheck still draws stars, goo, tunnel, burst and sun",
+    "through it, so rendererGL.cpp's frame path is still in use. The #47 entry's",
+    "\"runs only for GL, parity's reference\" is out of date on both counts: the",
+    "Metal saver never runs the CPU goo builder (HSRendererMetal builds the goo",
+    "itself), and GL is no longer the goo's reference. The builder still backs",
+    "the saver indirectly: tests/test_goo_gpu.cpp checks the triangle table the",
+    "GPU build reads (hsGooTriangleTable) against goo::buildSurface and",
+    "impCubeVolume. Nothing moved in or out of sources with #59, and coverage",
+    "at the pin equals the baseline."
   ],
 
   "metric": "lines",
