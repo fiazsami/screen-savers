@@ -356,7 +356,7 @@ denominators before reading the percentages:
 | | denominator | what it is |
 | --- | --- | --- |
 | helios | 987 regions | the shared C++ core only -- excludes `Helios.cpp`, `rsText`, `HeliosView.mm` |
-| hyperspace | 3911 **lines** | the shared core plus the Hyperspace files the port has taken off GL. `rendererMetal.mm`, `HyperspaceView.mm` and the `metal/` shaders are outside it (a GPU or a host process); parity's goldens and kill fixtures judge them. What is in scope, and what judges what, is in `coverage/hyperspace.json`'s `_scope` block, which is the record; this row is only the denominator |
+| hyperspace | **lines**; the number is `coverage/hyperspace.baseline.json` | deliberately not restated here: what is in scope, what is outside it, and what judges what is `coverage/hyperspace.json`'s `_scope` block, which is the record |
 | hills | **31 regions** | `Source Code/Camera.m` alone; everything else is GL or Cocoa |
 
 So driving helios to 100% would still leave the actual screen saver untested,
