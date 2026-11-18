@@ -174,8 +174,9 @@
     "itself), and GL is no longer the goo's reference. The builder still backs",
     "the saver indirectly: tests/test_goo_gpu.cpp checks the triangle table the",
     "GPU build reads (hsGooTriangleTable) against goo::buildSurface and",
-    "impCubeVolume. Nothing moved in or out of sources with #59: count 3911,",
-    "covered 3853, 98.52%, measured at the pin."
+    "impCubeVolume. Nothing moved in or out of sources with #59, and coverage",
+    "at the pin equals the baseline. This note does not account for the count's",
+    "change since the #47 entry, whose 3820 was a lagging baseline (ss-8hh)."
   ],
 
   "metric": "lines",
