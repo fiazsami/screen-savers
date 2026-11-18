@@ -356,7 +356,7 @@ denominators before reading the percentages:
 | | denominator | what it is |
 | --- | --- | --- |
 | helios | 987 regions | the shared C++ core only -- excludes `Helios.cpp`, `rsText`, `HeliosView.mm` |
-| hyperspace | **lines**; measure it with `tools/coverage.sh --json <dir> hyperspace` (the baseline's `count` can lag, ss-8hh) | not restated here: `coverage/hyperspace.json`'s `_scope` block says what is in scope and what judges the rest |
+| hyperspace | **lines**; measure it with `tools/coverage.sh --json <dir> hyperspace` (the baseline's `count` can lag, ss-8hh) | not restated here: `coverage/hyperspace.json`'s `_scope` block says what is in scope and why the rest is outside it |
 | hills | **31 regions** | `Source Code/Camera.m` alone; everything else is GL or Cocoa |
 
 So driving helios to 100% would still leave the actual screen saver untested,

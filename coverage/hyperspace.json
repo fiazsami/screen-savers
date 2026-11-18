@@ -175,9 +175,7 @@
     "the saver indirectly: tests/test_goo_gpu.cpp checks the triangle table the",
     "GPU build reads (hsGooTriangleTable) against goo::buildSurface and",
     "impCubeVolume. Nothing moved in or out of sources with #59: count 3911,",
-    "covered 3853, 98.52%, measured at the pin. The +91 lines since #47 came with",
-    "three earlier pins into files already in scope, all covered: the frame cap",
-    "(3820 -> 3849), the GPU-built tunnel (-> 3878), the GPU-drawn stars (-> 3911)."
+    "covered 3853, 98.52%, measured at the pin."
   ],
 
   "metric": "lines",
