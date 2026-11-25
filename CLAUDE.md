@@ -387,6 +387,7 @@ tools/triage.sh                         # classify what is still uncovered
 # The savers themselves. No signing arguments -- see below.
 xcodebuild -project helios/Helios.xcodeproj         -target Helios      -configuration Release build
 xcodebuild -project hyperspace/Hyperspace.xcodeproj -target Hyperspace  -configuration Release build
+xcodebuild -project hyperspace/Hyperspace.xcodeproj -target "Hyperspace Application" -configuration Release build
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Screensaver"   -configuration Release build
 xcodebuild -project hills/Hills.xcodeproj -target "Hills Application"   -configuration Release build
 
